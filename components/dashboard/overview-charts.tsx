@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Cell,
   CartesianGrid,
+  LabelList,
 } from "recharts";
 
 const DEFAULT_VISIBLE = 12;
@@ -22,10 +23,9 @@ interface Props {
 }
 
 const GRID_STROKE = "hsl(224, 14%, 16%)";
-const TICK_FILL = "hsl(220, 10%, 55%)";
+const TICK_FILL = "hsl(220, 20%, 90%)";
 const TOOLTIP_BG = "hsl(224, 18%, 9%)";
 const TOOLTIP_BORDER = "1px solid hsl(224, 14%, 16%)";
-const REVENUE_BAR_COLOR = "hsl(220, 70%, 55%)";
 
 function marginBarColor(margin: number): string {
   if (margin < 0.6) return "hsl(0, 72%, 51%)";
@@ -33,7 +33,6 @@ function marginBarColor(margin: number): string {
   return "hsl(160, 84%, 39%)";
 }
 
-// Keep enough chars to be readable without overflowing a 190px axis
 function shortLabel(name: string): string {
   if (name.length <= 28) return name;
   return name.substring(0, 27) + "…";
@@ -47,9 +46,10 @@ const fmtCurrency = new Intl.NumberFormat("en-US", {
 
 export function OverviewCharts({ data }: Props) {
   const [showAll, setShowAll] = useState(false);
+  const [revenueMode, setRevenueMode] = useState<"dollar" | "percent">("dollar");
 
-  // Sort descending by revenue; in layout="vertical" the array renders
-  // top-to-bottom, so no reversal needed — highest revenue is first = top.
+  const totalRevenue = data.reduce((s, r) => s + r.revenue, 0);
+
   const allData = data
     .slice()
     .sort((a, b) => b.revenue - a.revenue)
@@ -57,6 +57,7 @@ export function OverviewCharts({ data }: Props) {
       name: shortLabel(r.clientName),
       full: r.clientName,
       revenue: r.revenue,
+      revenuePct: totalRevenue > 0 ? (r.revenue / totalRevenue) * 100 : 0,
       grossMarginPct: parseFloat((r.grossMargin * 100).toFixed(1)),
       grossMargin: r.grossMargin,
     }));
@@ -64,26 +65,59 @@ export function OverviewCharts({ data }: Props) {
   const chartData = showAll ? allData : allData.slice(0, DEFAULT_VISIBLE);
   const hiddenCount = allData.length - DEFAULT_VISIBLE;
 
-  // 36px per client row (2 bars + gap) + top/bottom margins
-  const chartHeight = chartData.length * 36 + 40;
+  // 40px per client row + top/bottom margins
+  const chartHeight = chartData.length * 40 + 40;
+
+  const barDataKey = revenueMode === "dollar" ? "revenue" : "revenuePct";
+
+  const xDomain: [number, number] =
+    revenueMode === "percent"
+      ? [0, 100]
+      : [0, Math.max(...chartData.map((d) => d.revenue)) * 1.15];
+
+  const xTickFormatter =
+    revenueMode === "dollar"
+      ? (v: number) => "$" + (v / 1000).toFixed(0) + "k"
+      : (v: number) => v.toFixed(0) + "%";
 
   return (
     <Card>
       <CardHeader className="p-5 pb-2">
-        <CardTitle className="text-base font-semibold">Revenue &amp; Gross Margin by Client</CardTitle>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <CardTitle className="text-base font-semibold">Revenue &amp; Gross Margin by Client</CardTitle>
+          <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+            <Button
+              size="sm"
+              variant={revenueMode === "dollar" ? "secondary" : "ghost"}
+              className="h-6 px-2 text-xs"
+              onClick={() => setRevenueMode("dollar")}
+            >
+              $ Revenue
+            </Button>
+            <Button
+              size="sm"
+              variant={revenueMode === "percent" ? "secondary" : "ghost"}
+              className="h-6 px-2 text-xs"
+              onClick={() => setRevenueMode("percent")}
+            >
+              % of Firm
+            </Button>
+          </div>
+        </div>
         <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+          <span>Bar color = Gross Margin %:</span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-3 rounded-sm bg-[hsl(220,70%,55%)] opacity-85" />
-            Revenue
+            <span className="inline-block h-2 w-3 rounded-sm bg-rose-500" />
+            <span className="text-rose-400">&lt;60%</span>
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-3 rounded-sm bg-[hsl(160,84%,39%)]" />
-            Gross Margin %
+            <span className="inline-block h-2 w-3 rounded-sm bg-amber-400" />
+            <span className="text-amber-400">60–70%</span>
           </span>
-          <span className="text-border">·</span>
-          <span><span className="text-rose-400">Rose</span> &lt;60%</span>
-          <span><span className="text-amber-400">Amber</span> 60–70%</span>
-          <span><span className="text-emerald-400">Emerald</span> &ge;70%</span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-2 w-3 rounded-sm bg-emerald-500" />
+            <span className="text-emerald-400">&ge;70%</span>
+          </span>
         </div>
       </CardHeader>
       <CardContent className="p-5 pt-2">
@@ -91,41 +125,26 @@ export function OverviewCharts({ data }: Props) {
           <BarChart
             data={chartData}
             layout="vertical"
-            barSize={11}
-            barGap={3}
-            barCategoryGap="35%"
+            barSize={22}
+            barCategoryGap="40%"
             margin={{ top: 4, right: 56, left: 4, bottom: 4 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} horizontal={false} />
 
-            {/* Revenue axis — bottom */}
             <XAxis
-              xAxisId="rev"
               type="number"
-              orientation="bottom"
-              tick={{ fontSize: 10, fill: TICK_FILL }}
+              domain={xDomain}
+              tick={{ fontSize: 10, fill: "hsl(220, 10%, 55%)" }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v) => "$" + (v / 1000).toFixed(0) + "k"}
-            />
-
-            {/* Gross margin axis — top, 0–100% */}
-            <XAxis
-              xAxisId="pct"
-              type="number"
-              orientation="top"
-              domain={[0, 100]}
-              tick={{ fontSize: 10, fill: TICK_FILL }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(v) => v + "%"}
+              tickFormatter={xTickFormatter}
             />
 
             <YAxis
               type="category"
               dataKey="name"
               width={190}
-              tick={{ fontSize: 10.5, fill: TICK_FILL }}
+              tick={{ fontSize: 11, fill: TICK_FILL }}
               axisLine={false}
               tickLine={false}
             />
@@ -139,33 +158,30 @@ export function OverviewCharts({ data }: Props) {
                 fontSize: 12,
               }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              formatter={(v: any, name: string | undefined) =>
-                name === "revenue"
+              formatter={(v: any) =>
+                revenueMode === "dollar"
                   ? [fmtCurrency.format(v ?? 0), "Revenue"]
-                  : [(v as number).toFixed(1) + "%", "Gross Margin"]
+                  : [(v as number).toFixed(1) + "%", "Share of Firm Revenue"]
               }
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              labelFormatter={(_l: any, p: readonly any[]) => p[0]?.payload?.full ?? _l}
+              labelFormatter={(_l: any, p: readonly any[]) => {
+                const payload = p[0]?.payload;
+                if (!payload) return _l;
+                return `${payload.full} — GM: ${payload.grossMarginPct}%`;
+              }}
             />
 
-            <Bar
-              xAxisId="rev"
-              dataKey="revenue"
-              name="revenue"
-              fill={REVENUE_BAR_COLOR}
-              radius={[0, 3, 3, 0]}
-              opacity={0.85}
-            />
-            <Bar
-              xAxisId="pct"
-              dataKey="grossMarginPct"
-              name="grossMarginPct"
-              radius={[0, 3, 3, 0]}
-              opacity={0.9}
-            >
+            <Bar dataKey={barDataKey} radius={[0, 3, 3, 0]}>
               {chartData.map((entry) => (
                 <Cell key={entry.full} fill={marginBarColor(entry.grossMargin)} />
               ))}
+              <LabelList
+                dataKey="grossMarginPct"
+                position="right"
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={(v: any) => (typeof v === "number" ? v.toFixed(1) + "%" : "")}
+                style={{ fontSize: 10, fill: "hsl(220, 10%, 70%)" }}
+              />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
