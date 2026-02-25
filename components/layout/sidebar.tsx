@@ -12,6 +12,7 @@ import {
   BarChart3,
   PanelLeftClose,
   PanelLeftOpen,
+  ShieldCheck,
 } from "lucide-react";
 
 export type SidebarView =
@@ -21,7 +22,8 @@ export type SidebarView =
   | "charts"
   | "data-sources"
   | "field-mapping"
-  | "metric-selection";
+  | "metric-selection"
+  | "user-management";
 
 interface NavItem {
   id: SidebarView;
@@ -42,13 +44,18 @@ const CONFIGURATION: NavItem[] = [
   { id: "metric-selection", label: "Metric Selection", icon: <SlidersHorizontal className="h-4 w-4" /> },
 ];
 
+const ADMIN_NAV: NavItem[] = [
+  { id: "user-management", label: "User Management", icon: <ShieldCheck className="h-4 w-4" /> },
+];
+
 interface Props {
   activeView: SidebarView;
   onViewChange: (view: SidebarView) => void;
   dataStatus: "sample" | "custom";
+  isAdmin?: boolean;
 }
 
-export function Sidebar({ activeView, onViewChange, dataStatus }: Props) {
+export function Sidebar({ activeView, onViewChange, dataStatus, isAdmin = false }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -87,6 +94,15 @@ export function Sidebar({ activeView, onViewChange, dataStatus }: Props) {
           onViewChange={onViewChange}
           collapsed={collapsed}
         />
+        {isAdmin && (
+          <NavSection
+            label="Admin"
+            items={ADMIN_NAV}
+            activeView={activeView}
+            onViewChange={onViewChange}
+            collapsed={collapsed}
+          />
+        )}
       </nav>
 
       {/* Footer */}

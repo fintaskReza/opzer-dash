@@ -1,7 +1,7 @@
 "use client";
 
-import { CLIENTS } from "@/lib/data";
-import type { DashboardFilters } from "@/lib/types";
+import useSWR from "swr";
+import type { DashboardFilters, Client } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,16 @@ interface Props {
   onChange: (f: DashboardFilters) => void;
 }
 
-const ACTIVE_CLIENTS = CLIENTS.filter((c) => c.status === "Active").map((c) => c.karbonName).sort();
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export function DashboardFilters({ filters, onChange }: Props) {
   const [clientSearch, setClientSearch] = useState("");
+  const { data: clients = [] } = useSWR<Client[]>("/api/clients", fetcher);
+
+  const activeClients = clients
+    .filter((c) => c.status === "Active")
+    .map((c) => c.karbonName)
+    .sort();
 
   function setField<K extends keyof DashboardFilters>(key: K, value: DashboardFilters[K]) {
     onChange({ ...filters, [key]: value });
@@ -34,8 +40,8 @@ export function DashboardFilters({ filters, onChange }: Props) {
   }
 
   const filtered = clientSearch
-    ? ACTIVE_CLIENTS.filter((c) => c.toLowerCase().includes(clientSearch.toLowerCase()))
-    : ACTIVE_CLIENTS;
+    ? activeClients.filter((c) => c.toLowerCase().includes(clientSearch.toLowerCase()))
+    : activeClients;
 
   return (
     <div className="flex flex-wrap items-end gap-4">

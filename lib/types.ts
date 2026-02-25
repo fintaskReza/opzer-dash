@@ -118,3 +118,12 @@ export interface DashboardFilters {
   selectedClients: string[];
   activeOnly: boolean;
 }
+
+export interface OrgUser {
+  id: number;
+  orgId: number;
+  email: string;
+  name: string;
+  role: "admin" | "member";
+  createdAt: string;
+}

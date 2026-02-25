@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSession, signOut } from "next-auth/react";
+import useSWR from "swr";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { Sidebar, type SidebarView } from "@/components/layout/sidebar";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { DashboardFilters } from "@/components/dashboard/filters";
@@ -15,12 +18,11 @@ import { DataSourcePanel } from "@/components/data-source/data-source-panel";
 import { UtilizationChart } from "@/components/dashboard/utilization-chart";
 import { FieldMappingGuide } from "@/components/dashboard/field-mapping-guide";
 import { ServiceChart } from "@/components/dashboard/service-chart";
+import { UserManagementPanel } from "@/components/admin/user-management-panel";
 import {
   computeClientProfitability,
   computeTeamUtilization,
   computeServiceProfitability,
-  TIME_ENTRIES,
-  REVENUE_ENTRIES,
 } from "@/lib/data";
 import type {
   DashboardFilters as IFilters,
@@ -28,6 +30,9 @@ import type {
   UtilizationMetricKey,
   TimeEntry,
   RevenueEntry,
+  ClientProfitabilityRow,
+  TeamMemberUtilizationRow,
+  ServiceProfitabilityRow,
 } from "@/lib/types";
 
 const DEFAULT_FILTERS: IFilters = {
@@ -55,36 +60,62 @@ const DEFAULT_TEAM_METRICS = new Set<UtilizationMetricKey>([
   "avgHourlyRate",
 ]);
 
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+function buildDashboardUrl(base: string, filters: IFilters) {
+  const params = new URLSearchParams({
+    from: filters.dateFrom,
+    to: filters.dateTo,
+    activeOnly: String(filters.activeOnly),
+  });
+  if (filters.selectedClients.length > 0) {
+    params.set("clients", filters.selectedClients.join(","));
+  }
+  return `${base}?${params.toString()}`;
+}
+
 export default function DashboardPage() {
+  const { data: session } = useSession();
   const [activeView, setActiveView] = useState<SidebarView>("client-profitability");
   const [filters, setFilters] = useState<IFilters>(DEFAULT_FILTERS);
   const [enabledClientMetrics, setEnabledClientMetrics] = useState(DEFAULT_CLIENT_METRICS);
   const [enabledTeamMetrics, setEnabledTeamMetrics] = useState(DEFAULT_TEAM_METRICS);
-  const [customTime, setCustomTime] = useState<TimeEntry[] | null>(null);
-  const [customRevenue, setCustomRevenue] = useState<RevenueEntry[] | null>(null);
 
-  const timeData = customTime ?? TIME_ENTRIES;
-  const revenueData = customRevenue ?? REVENUE_ENTRIES;
+  // Fetch live data from API
+  const { data: timeEntries = [] } = useSWR<TimeEntry[]>("/api/time-entries", fetcher);
+  const { data: revenueEntries = [] } = useSWR<RevenueEntry[]>("/api/revenue-entries", fetcher);
 
-  const clientRows = useMemo(
-    () => computeClientProfitability(filters, timeData, revenueData),
-    [filters, timeData, revenueData]
+  const clientRows = useMemo<ClientProfitabilityRow[]>(
+    () => computeClientProfitability(filters, timeEntries, revenueEntries),
+    [filters, timeEntries, revenueEntries]
   );
-  const teamRows = useMemo(
-    () => computeTeamUtilization(filters, timeData, revenueData),
-    [filters, timeData, revenueData]
+  const teamRows = useMemo<TeamMemberUtilizationRow[]>(
+    () => computeTeamUtilization(filters, timeEntries, revenueEntries),
+    [filters, timeEntries, revenueEntries]
   );
-  const serviceRows = useMemo(
-    () => computeServiceProfitability(filters, timeData, revenueData),
-    [filters, timeData, revenueData]
+  const serviceRows = useMemo<ServiceProfitabilityRow[]>(
+    () => computeServiceProfitability(filters, timeEntries, revenueEntries),
+    [filters, timeEntries, revenueEntries]
   );
 
-  function handleDataImport(time: TimeEntry[], revenue: RevenueEntry[]) {
-    if (time.length > 0) setCustomTime(time);
-    if (revenue.length > 0) setCustomRevenue(revenue);
+  async function handleDataImport(time: TimeEntry[], revenue: RevenueEntry[]) {
+    if (time.length > 0) {
+      await fetch("/api/time-entries/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(time),
+      });
+    }
+    if (revenue.length > 0) {
+      await fetch("/api/revenue-entries/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(revenue),
+      });
+    }
   }
 
-  const dataStatus = customTime || customRevenue ? "custom" : "sample";
+  const isAdmin = session?.user?.role === "admin";
   const lastSync = new Date().toLocaleDateString("en-IE", { day: "2-digit", month: "short", year: "numeric" });
 
   const VIEW_META: Record<SidebarView, { title: string; subtitle: string }> = {
@@ -116,13 +147,17 @@ export default function DashboardPage() {
       title: "Metric Selection",
       subtitle: "Choose which columns are visible in each dashboard table",
     },
+    "user-management": {
+      title: "User Management",
+      subtitle: "Manage users and organisation access",
+    },
   };
 
   const meta = VIEW_META[activeView];
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar activeView={activeView} onViewChange={setActiveView} dataStatus={dataStatus} />
+      <Sidebar activeView={activeView} onViewChange={setActiveView} dataStatus="sample" isAdmin={isAdmin} />
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -132,9 +167,24 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold tracking-tight text-foreground">{meta.title}</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">{meta.subtitle}</p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className={`inline-flex h-2 w-2 rounded-full ${dataStatus === "custom" ? "bg-amber-400" : "bg-emerald-400"}`} />
-            {dataStatus === "custom" ? "Custom data active" : `Sample data — last sync ${lastSync}`}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              {`Live data — ${lastSync}`}
+            </div>
+            {session?.user && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{session.user.name}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                >
+                  Sign out
+                </Button>
+              </div>
+            )}
           </div>
         </header>
 
@@ -189,7 +239,7 @@ export default function DashboardPage() {
             {activeView === "data-sources" && (
               <DataSourcePanel
                 onDataImport={handleDataImport}
-                onResetToSample={() => { setCustomTime(null); setCustomRevenue(null); }}
+                onResetToSample={() => {}}
               />
             )}
 
@@ -205,6 +255,9 @@ export default function DashboardPage() {
                 onTeamMetricsChange={setEnabledTeamMetrics}
               />
             )}
+
+            {/* ── User Management (admin only) ── */}
+            {activeView === "user-management" && isAdmin && <UserManagementPanel />}
 
           </div>
         </main>
