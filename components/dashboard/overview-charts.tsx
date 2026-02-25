@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { ClientProfitabilityRow } from "@/lib/types";
 import {
   BarChart,
@@ -12,6 +14,8 @@ import {
   Cell,
   CartesianGrid,
 } from "recharts";
+
+const DEFAULT_VISIBLE = 12;
 
 interface Props {
   data: ClientProfitabilityRow[];
@@ -42,19 +46,23 @@ const fmtCurrency = new Intl.NumberFormat("en-US", {
 });
 
 export function OverviewCharts({ data }: Props) {
-  // All clients sorted by revenue descending (highest at top)
-  const chartData = data
+  const [showAll, setShowAll] = useState(false);
+
+  // Sort descending by revenue; in layout="vertical" the array renders
+  // top-to-bottom, so no reversal needed — highest revenue is first = top.
+  const allData = data
     .slice()
     .sort((a, b) => b.revenue - a.revenue)
-    .reverse() // reverse so highest ends up at the top of the horizontal chart
     .map((r) => ({
       name: shortLabel(r.clientName),
       full: r.clientName,
       revenue: r.revenue,
-      // Scale gross margin to 0-100 on its own axis
       grossMarginPct: parseFloat((r.grossMargin * 100).toFixed(1)),
       grossMargin: r.grossMargin,
     }));
+
+  const chartData = showAll ? allData : allData.slice(0, DEFAULT_VISIBLE);
+  const hiddenCount = allData.length - DEFAULT_VISIBLE;
 
   // 36px per client row (2 bars + gap) + top/bottom margins
   const chartHeight = chartData.length * 36 + 40;
@@ -161,6 +169,19 @@ export function OverviewCharts({ data }: Props) {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+
+        {hiddenCount > 0 && (
+          <div className="mt-3 flex justify-center border-t border-border pt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setShowAll((v) => !v)}
+            >
+              {showAll ? "Show less" : `Show ${hiddenCount} more clients`}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
