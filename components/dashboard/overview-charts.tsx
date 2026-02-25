@@ -48,9 +48,6 @@ const fmtCurrency = new Intl.NumberFormat("en-US", {
 
 export function OverviewCharts({ data }: Props) {
   const [showAll, setShowAll] = useState(false);
-  const [mode, setMode] = useState<"dollar" | "percent">("dollar");
-
-  const totalRevenue = data.reduce((s, r) => s + r.revenue, 0);
 
   const allData = data
     .slice()
@@ -58,34 +55,17 @@ export function OverviewCharts({ data }: Props) {
     .map((r) => ({
       name: shortLabel(r.clientName),
       full: r.clientName,
-      // $ mode values
       revenue: r.revenue,
-      grossProfit: r.grossProfit,
-      // % mode values
-      revenuePct: totalRevenue > 0 ? (r.revenue / totalRevenue) * 100 : 0,
-      grossMarginPct: parseFloat((r.grossMargin * 100).toFixed(1)),
-      // for coloring the gross bar
       grossMargin: r.grossMargin,
+      grossMarginPct: parseFloat((r.grossMargin * 100).toFixed(1)),
     }));
 
   const chartData = showAll ? allData : allData.slice(0, DEFAULT_VISIBLE);
   const hiddenCount = allData.length - DEFAULT_VISIBLE;
 
-  // 52px per client (two bars + gap) + margins
   const chartHeight = chartData.length * 52 + 40;
 
-  const revenueKey = mode === "dollar" ? "revenue" : "revenuePct";
-  const grossKey = mode === "dollar" ? "grossProfit" : "grossMarginPct";
-
-  const maxValue =
-    mode === "dollar"
-      ? Math.max(...chartData.map((d) => d.revenue)) * 1.15
-      : 100;
-
-  const tickFormatter =
-    mode === "dollar"
-      ? (v: number) => "$" + (v / 1000).toFixed(0) + "k"
-      : (v: number) => v.toFixed(0) + "%";
+  const maxRevenue = Math.max(...chartData.map((d) => d.revenue)) * 1.15;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const labelFormatter = (_l: any, p: readonly any[]) => {
@@ -95,185 +75,187 @@ export function OverviewCharts({ data }: Props) {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tooltipFormatter = (v: any, name: string | undefined, item: any) => {
-    const payload = item?.payload;
-    if (name === "revenue" || name === "revenuePct") {
-      return mode === "dollar"
-        ? [fmtCurrency.format(v), "Revenue"]
-        : [(v as number).toFixed(1) + "%", "% of Firm Revenue"];
+  const tooltipFormatter = (v: any, name: string | undefined) => {
+    if (name === "revenue") {
+      return [fmtCurrency.format(v), "Revenue"];
     }
-    if (name === "grossProfit" || name === "grossMarginPct") {
-      const suffix =
-        mode === "dollar"
-          ? [fmtCurrency.format(v), "Gross Profit"]
-          : [(v as number).toFixed(1) + "%", "Gross Margin %"];
-      // append margin % in $ mode for context
-      if (mode === "dollar" && payload) {
-        return [
-          fmtCurrency.format(v) + ` (${payload.grossMarginPct}% margin)`,
-          "Gross Profit",
-        ];
-      }
-      return suffix;
+    if (name === "grossMarginPct") {
+      return [(v as number).toFixed(1) + "%", "Gross Margin"];
     }
     return [v, name];
   };
 
   return (
-    <Card>
-      <CardHeader className="p-5 pb-2">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Revenue by Client */}
+      <Card>
+        <CardHeader className="p-5 pb-2">
           <CardTitle className="text-base font-semibold">
-            Revenue &amp; Gross Margin by Client
+            Revenue by Client
           </CardTitle>
-          <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
-            <Button
-              size="sm"
-              variant={mode === "dollar" ? "secondary" : "ghost"}
-              className="h-6 px-2 text-xs"
-              onClick={() => setMode("dollar")}
-            >
-              $ Amount
-            </Button>
-            <Button
-              size="sm"
-              variant={mode === "percent" ? "secondary" : "ghost"}
-              className="h-6 px-2 text-xs"
-              onClick={() => setMode("percent")}
-            >
-              %
-            </Button>
-          </div>
-        </div>
-        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="inline-block h-2 w-3 rounded-sm bg-[hsl(220,70%,55%)]" />
-            Revenue {mode === "dollar" ? "($)" : "(% of Firm)"}
-          </span>
-          <span className="text-border">·</span>
-          <span>Gross Margin bar color:</span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-3 rounded-sm bg-rose-500" />
-            <span className="text-rose-400">&lt;60%</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-3 rounded-sm bg-amber-400" />
-            <span className="text-amber-400">60–70%</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-3 rounded-sm bg-emerald-500" />
-            <span className="text-emerald-400">&ge;70%</span>
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent className="p-5 pt-2">
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <BarChart
-            data={chartData}
-            layout="vertical"
-            barSize={18}
-            barGap={4}
-            barCategoryGap="38%"
-            margin={{ top: 4, right: 60, left: 4, bottom: 4 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke={GRID_STROKE}
-              horizontal={false}
-            />
-
-            <XAxis
-              type="number"
-              domain={[0, maxValue]}
-              tick={{ fontSize: 10, fill: TICK_FILL }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={tickFormatter}
-            />
-
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={190}
-              tick={{ fontSize: 11, fill: LABEL_FILL }}
-              axisLine={false}
-              tickLine={false}
-            />
-
-            <Tooltip
-              cursor={{ fill: "hsl(220, 14%, 12%)" }}
-              contentStyle={{
-                background: TOOLTIP_BG,
-                border: TOOLTIP_BORDER,
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              formatter={tooltipFormatter}
-              labelFormatter={labelFormatter}
-            />
-
-            {/* Revenue bar */}
-            <Bar
-              dataKey={revenueKey}
-              name={revenueKey}
-              fill={REVENUE_COLOR}
-              radius={[0, 3, 3, 0]}
-              opacity={0.85}
-            >
-              <LabelList
-                dataKey={revenueKey}
-                position="right"
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                formatter={(v: any) =>
-                  mode === "dollar"
-                    ? "$" + ((v as number) / 1000).toFixed(0) + "k"
-                    : (v as number).toFixed(1) + "%"
-                }
-                style={{ fontSize: 10, fill: TICK_FILL }}
-              />
-            </Bar>
-
-            {/* Gross margin bar — colored by margin quality */}
-            <Bar
-              dataKey={grossKey}
-              name={grossKey}
-              radius={[0, 3, 3, 0]}
-              opacity={0.9}
-            >
-              {chartData.map((entry) => (
-                <Cell
-                  key={entry.full}
-                  fill={marginBarColor(entry.grossMargin)}
-                />
-              ))}
-              <LabelList
-                dataKey={grossKey}
-                position="right"
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                formatter={(v: any) =>
-                  mode === "dollar"
-                    ? "$" + ((v as number) / 1000).toFixed(0) + "k"
-                    : (v as number).toFixed(1) + "%"
-                }
-                style={{ fontSize: 10, fill: TICK_FILL }}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-
-        {hiddenCount > 0 && (
-          <div className="mt-3 flex justify-center border-t border-border pt-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => setShowAll((v) => !v)}
-            >
-              {showAll ? "Show less" : `Show ${hiddenCount} more clients`}
-            </Button>
+            Revenue ($)
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent className="p-5 pt-2">
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              barSize={18}
+              margin={{ top: 4, right: 60, left: 4, bottom: 4 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={GRID_STROKE}
+                horizontal={false}
+              />
+              <XAxis
+                type="number"
+                domain={[0, maxRevenue]}
+                tick={{ fontSize: 10, fill: TICK_FILL }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) => "$" + (v / 1000).toFixed(0) + "k"}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={190}
+                tick={{ fontSize: 11, fill: LABEL_FILL }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: "hsl(220, 14%, 12%)" }}
+                contentStyle={{
+                  background: TOOLTIP_BG,
+                  border: TOOLTIP_BORDER,
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={tooltipFormatter}
+                labelFormatter={labelFormatter}
+              />
+              <Bar
+                dataKey="revenue"
+                name="revenue"
+                fill={REVENUE_COLOR}
+                radius={[0, 3, 3, 0]}
+                opacity={0.85}
+              >
+                <LabelList
+                  dataKey="revenue"
+                  position="right"
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  formatter={(v: any) => "$" + ((v as number) / 1000).toFixed(0) + "k"}
+                  style={{ fontSize: 10, fill: TICK_FILL }}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Gross Margin by Client */}
+      <Card>
+        <CardHeader className="p-5 pb-2">
+          <CardTitle className="text-base font-semibold">
+            Gross Margin by Client
+          </CardTitle>
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-3 rounded-sm bg-rose-500" />
+              <span className="text-rose-400">&lt;60%</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-3 rounded-sm bg-amber-400" />
+              <span className="text-amber-400">60–70%</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-3 rounded-sm bg-emerald-500" />
+              <span className="text-emerald-400">&ge;70%</span>
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="p-5 pt-2">
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              barSize={18}
+              margin={{ top: 4, right: 60, left: 4, bottom: 4 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke={GRID_STROKE}
+                horizontal={false}
+              />
+              <XAxis
+                type="number"
+                domain={[0, 100]}
+                tick={{ fontSize: 10, fill: TICK_FILL }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) => v.toFixed(0) + "%"}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={190}
+                tick={{ fontSize: 11, fill: LABEL_FILL }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: "hsl(220, 14%, 12%)" }}
+                contentStyle={{
+                  background: TOOLTIP_BG,
+                  border: TOOLTIP_BORDER,
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                formatter={tooltipFormatter}
+                labelFormatter={labelFormatter}
+              />
+              <Bar
+                dataKey="grossMarginPct"
+                name="grossMarginPct"
+                radius={[0, 3, 3, 0]}
+                opacity={0.9}
+              >
+                {chartData.map((entry) => (
+                  <Cell
+                    key={entry.full}
+                    fill={marginBarColor(entry.grossMargin)}
+                  />
+                ))}
+                <LabelList
+                  dataKey="grossMarginPct"
+                  position="right"
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  formatter={(v: any) => (v as number).toFixed(1) + "%"}
+                  style={{ fontSize: 10, fill: TICK_FILL }}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {hiddenCount > 0 && (
+        <div className="col-span-full flex justify-center border-t border-border pt-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setShowAll((v) => !v)}
+          >
+            {showAll ? "Show less" : `Show ${hiddenCount} more clients`}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
