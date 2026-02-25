@@ -67,55 +67,57 @@ export function OverviewCharts({ data }: Props) {
     }));
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      {/* Top 12 Clients by Revenue — horizontal bar */}
-      <Card>
-        <CardHeader className="p-5 pb-0">
-          <CardTitle className="text-base font-semibold">Top 12 Clients by Revenue</CardTitle>
-          <p className="mt-0.5 text-xs text-muted-foreground">Sorted by revenue descending</p>
-        </CardHeader>
-        <CardContent className="p-5 pt-3">
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart
-              data={top12Revenue}
-              layout="vertical"
-              margin={{ top: 4, right: 16, left: 4, bottom: 4 }}
-            >
-              <XAxis
-                type="number"
-                tick={{ fontSize: 10, fill: TICK_FILL }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => "$" + (v / 1000).toFixed(0) + "k"}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={120}
-                tick={{ fontSize: 10, fill: TICK_FILL }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                cursor={{ fill: "hsl(220, 14%, 12%)" }}
-                contentStyle={{
-                  background: TOOLTIP_BG,
-                  border: TOOLTIP_BORDER,
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                formatter={(v: any) => [fmtCurrency.format(v ?? 0), "Revenue"]}
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                labelFormatter={(_l: any, p: readonly any[]) => p[0]?.payload?.full ?? _l}
-              />
-              <Bar dataKey="revenue" fill={REVENUE_BAR_COLOR} radius={[0, 3, 3, 0]} opacity={0.85} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-4">
+      {/* Top 12 Clients by Revenue — half width */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="p-5 pb-0">
+            <CardTitle className="text-base font-semibold">Top 12 Clients by Revenue</CardTitle>
+            <p className="mt-0.5 text-xs text-muted-foreground">Sorted by revenue descending</p>
+          </CardHeader>
+          <CardContent className="p-5 pt-3">
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart
+                data={top12Revenue}
+                layout="vertical"
+                margin={{ top: 4, right: 16, left: 4, bottom: 4 }}
+              >
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 10, fill: TICK_FILL }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => "$" + (v / 1000).toFixed(0) + "k"}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={120}
+                  tick={{ fontSize: 10, fill: TICK_FILL }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  cursor={{ fill: "hsl(220, 14%, 12%)" }}
+                  contentStyle={{
+                    background: TOOLTIP_BG,
+                    border: TOOLTIP_BORDER,
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  formatter={(v: any) => [fmtCurrency.format(v ?? 0), "Revenue"]}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  labelFormatter={(_l: any, p: readonly any[]) => p[0]?.payload?.full ?? _l}
+                />
+                <Bar dataKey="revenue" fill={REVENUE_BAR_COLOR} radius={[0, 3, 3, 0]} opacity={0.85} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Gross Margin % — all clients, color by threshold */}
+      {/* Gross Margin % — full width row so all bars have space */}
       <Card>
         <CardHeader className="p-5 pb-0">
           <CardTitle className="text-base font-semibold">Gross Margin % by Client</CardTitle>
@@ -126,65 +128,47 @@ export function OverviewCharts({ data }: Props) {
           </p>
         </CardHeader>
         <CardContent className="p-5 pt-3">
-          {/* Horizontally scrollable — each bar gets 48 px so labels have room */}
-          <div className="overflow-x-auto">
-            {(() => {
-              const BAR_SLOT = 48;
-              const Y_AXIS_W = 44;
-              const BOTTOM = 96;
-              const CHART_H = 340;
-              const chartWidth = Math.max(560, marginData.length * BAR_SLOT + Y_AXIS_W + 16);
-              return (
-                <div style={{ width: chartWidth }}>
-                  <BarChart
-                    width={chartWidth}
-                    height={CHART_H}
-                    data={marginData}
-                    barSize={26}
-                    margin={{ top: 4, right: 16, left: 0, bottom: BOTTOM }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fontSize: 10, fill: TICK_FILL }}
-                      axisLine={false}
-                      tickLine={false}
-                      angle={-45}
-                      textAnchor="end"
-                      interval={0}
-                      height={BOTTOM}
-                    />
-                    <YAxis
-                      width={Y_AXIS_W}
-                      tick={{ fontSize: 10, fill: TICK_FILL }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(v) => (v * 100).toFixed(0) + "%"}
-                      domain={[0, 1]}
-                    />
-                    <Tooltip
-                      cursor={{ fill: "hsl(220, 14%, 12%)" }}
-                      contentStyle={{
-                        background: TOOLTIP_BG,
-                        border: TOOLTIP_BORDER,
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={(v: any) => [(v * 100).toFixed(1) + "%", "Gross Margin"]}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      labelFormatter={(_l: any, p: readonly any[]) => p[0]?.payload?.full ?? _l}
-                    />
-                    <Bar dataKey="grossMargin" radius={[3, 3, 0, 0]} opacity={0.9}>
-                      {marginData.map((entry) => (
-                        <Cell key={entry.full} fill={marginBarColor(entry.grossMargin)} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </div>
-              );
-            })()}
-          </div>
+          <ResponsiveContainer width="100%" height={340}>
+            <BarChart data={marginData} margin={{ top: 4, right: 8, left: 0, bottom: 90 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 10, fill: TICK_FILL }}
+                axisLine={false}
+                tickLine={false}
+                angle={-45}
+                textAnchor="end"
+                interval={0}
+                height={90}
+              />
+              <YAxis
+                width={44}
+                tick={{ fontSize: 10, fill: TICK_FILL }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => (v * 100).toFixed(0) + "%"}
+                domain={[0, 1]}
+              />
+              <Tooltip
+                cursor={{ fill: "hsl(220, 14%, 12%)" }}
+                contentStyle={{
+                  background: TOOLTIP_BG,
+                  border: TOOLTIP_BORDER,
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={(v: any) => [(v * 100).toFixed(1) + "%", "Gross Margin"]}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                labelFormatter={(_l: any, p: readonly any[]) => p[0]?.payload?.full ?? _l}
+              />
+              <Bar dataKey="grossMargin" radius={[3, 3, 0, 0]} opacity={0.9}>
+                {marginData.map((entry) => (
+                  <Cell key={entry.full} fill={marginBarColor(entry.grossMargin)} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
     </div>
