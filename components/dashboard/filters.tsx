@@ -44,81 +44,83 @@ export function DashboardFilters({ filters, onChange }: Props) {
     : activeClients;
 
   return (
-    <div className="flex flex-wrap items-end gap-4">
-      {/* Date range */}
-      <div className="flex items-end gap-2">
-        <div>
-          <Label className="text-xs text-muted-foreground">From</Label>
-          <Input
-            type="date"
-            value={filters.dateFrom}
-            onChange={(e) => setField("dateFrom", e.target.value)}
-            className="mt-1 h-8 w-36 text-xs"
-          />
+    <div className="flex flex-col gap-2">
+      <div className="flex items-end gap-4">
+        {/* Date range */}
+        <div className="flex items-end gap-2">
+          <div>
+            <Label className="text-xs text-muted-foreground">From</Label>
+            <Input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => setField("dateFrom", e.target.value)}
+              className="mt-1 h-8 w-36 text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">To</Label>
+            <Input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => setField("dateTo", e.target.value)}
+              className="mt-1 h-8 w-36 text-xs"
+            />
+          </div>
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">To</Label>
-          <Input
-            type="date"
-            value={filters.dateTo}
-            onChange={(e) => setField("dateTo", e.target.value)}
-            className="mt-1 h-8 w-36 text-xs"
-          />
-        </div>
-      </div>
 
-      {/* Quick date presets */}
-      <div className="flex items-center gap-1.5">
-        {[
-          { label: "Jun 2025", from: "2025-06-01", to: "2025-06-30" },
-          { label: "Jul 2025", from: "2025-07-01", to: "2025-07-31" },
-          { label: "Aug 2025", from: "2025-08-01", to: "2025-08-31" },
-          { label: "Q3 2025", from: "2025-07-01", to: "2025-09-30" },
-          { label: "All", from: "2025-01-01", to: "2025-12-31" },
-        ].map((p) => (
-          <Button
-            key={p.label}
-            variant={filters.dateFrom === p.from && filters.dateTo === p.to ? "default" : "secondary"}
-            size="sm"
-            className="h-8 px-2.5 text-xs"
-            onClick={() => onChange({ ...filters, dateFrom: p.from, dateTo: p.to })}
-          >
-            {p.label}
-          </Button>
-        ))}
-      </div>
-
-      {/* Client filter */}
-      <div className="relative min-w-[200px]">
-        <Label className="text-xs text-muted-foreground">Filter Clients</Label>
-        <div className="mt-1 flex items-center gap-1">
-          <Input
-            placeholder="Search clients..."
-            value={clientSearch}
-            onChange={(e) => setClientSearch(e.target.value)}
-            className="h-8 text-xs"
-          />
-          {filters.selectedClients.length > 0 && (
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={clearClients}>
-              Clear ({filters.selectedClients.length})
+        {/* Quick date presets */}
+        <div className="flex items-center gap-1.5">
+          {[
+            { label: "Jun 2025", from: "2025-06-01", to: "2025-06-30" },
+            { label: "Jul 2025", from: "2025-07-01", to: "2025-07-31" },
+            { label: "Aug 2025", from: "2025-08-01", to: "2025-08-31" },
+            { label: "Q3 2025", from: "2025-07-01", to: "2025-09-30" },
+            { label: "All", from: "2025-01-01", to: "2025-12-31" },
+          ].map((p) => (
+            <Button
+              key={p.label}
+              variant={filters.dateFrom === p.from && filters.dateTo === p.to ? "default" : "secondary"}
+              size="sm"
+              className="h-8 px-2.5 text-xs"
+              onClick={() => onChange({ ...filters, dateFrom: p.from, dateTo: p.to })}
+            >
+              {p.label}
             </Button>
+          ))}
+        </div>
+
+        {/* Client filter — pushed to far right */}
+        <div className="relative ml-auto min-w-[220px]">
+          <Label className="text-xs text-muted-foreground">Filter Clients</Label>
+          <div className="mt-1 flex items-center gap-1">
+            <Input
+              placeholder="Search clients..."
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              className="h-8 text-xs"
+            />
+            {filters.selectedClients.length > 0 && (
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={clearClients}>
+                Clear ({filters.selectedClients.length})
+              </Button>
+            )}
+          </div>
+          {clientSearch && (
+            <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md border border-border bg-popover shadow-lg">
+              {filtered.slice(0, 20).map((c) => (
+                <button
+                  key={c}
+                  className={`flex w-full items-center px-3 py-1.5 text-left text-xs hover:bg-accent ${filters.selectedClients.includes(c) ? "text-primary" : "text-foreground"}`}
+                  onClick={() => { toggleClient(c); setClientSearch(""); }}
+                >
+                  <span className="truncate">{c}</span>
+                  {filters.selectedClients.includes(c) && <X className="ml-auto h-3 w-3 shrink-0" />}
+                </button>
+              ))}
+              {filtered.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No match</p>}
+            </div>
           )}
         </div>
-        {clientSearch && (
-          <div className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md border border-border bg-popover shadow-lg">
-            {filtered.slice(0, 20).map((c) => (
-              <button
-                key={c}
-                className={`flex w-full items-center px-3 py-1.5 text-left text-xs hover:bg-accent ${filters.selectedClients.includes(c) ? "text-primary" : "text-foreground"}`}
-                onClick={() => { toggleClient(c); setClientSearch(""); }}
-              >
-                <span className="truncate">{c}</span>
-                {filters.selectedClients.includes(c) && <X className="ml-auto h-3 w-3 shrink-0" />}
-              </button>
-            ))}
-            {filtered.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No match</p>}
-          </div>
-        )}
       </div>
 
       {/* Active client chips */}

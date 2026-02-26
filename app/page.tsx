@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import { useSession, signOut } from "next-auth/react";
 import useSWR from "swr";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Sidebar, type SidebarView } from "@/components/layout/sidebar";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
@@ -196,7 +195,6 @@ export default function DashboardPage() {
             {activeView === "client-profitability" && (
               <>
                 <DashboardFilters filters={filters} onChange={setFilters} />
-                <Separator />
                 <KpiCards clients={clientRows} team={teamRows} />
                 <OverviewCharts data={clientRows} />
                 <ClientProfitabilityTable data={clientRows} enabledMetrics={enabledClientMetrics} />
@@ -207,7 +205,6 @@ export default function DashboardPage() {
             {activeView === "team-utilization" && (
               <>
                 <DashboardFilters filters={filters} onChange={setFilters} />
-                <Separator />
                 <UtilizationChart data={teamRows} />
                 <TeamUtilizationTable data={teamRows} enabledMetrics={enabledTeamMetrics} />
               </>
@@ -217,7 +214,6 @@ export default function DashboardPage() {
             {activeView === "service-profitability" && (
               <>
                 <DashboardFilters filters={filters} onChange={setFilters} />
-                <Separator />
                 <ServiceChart data={serviceRows} />
                 <ServiceProfitabilityTable data={serviceRows} />
               </>
@@ -227,7 +223,6 @@ export default function DashboardPage() {
             {activeView === "charts" && (
               <>
                 <DashboardFilters filters={filters} onChange={setFilters} />
-                <Separator />
                 <OverviewCharts data={clientRows} />
                 <ServiceChart data={serviceRows} />
                 <ProfitabilityChart data={clientRows} />
