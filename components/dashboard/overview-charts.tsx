@@ -121,6 +121,8 @@ export function OverviewCharts({ data }: Props) {
                 borderRadius: 8,
                 fontSize: 12,
               }}
+              labelStyle={{ color: "hsl(220, 20%, 95%)", fontWeight: 600, marginBottom: 4 }}
+              itemStyle={{ color: "hsl(220, 15%, 80%)" }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               formatter={(v: any, name: string | undefined) =>
                 name === "revenue"
