@@ -79,7 +79,7 @@ export function Sidebar({ activeView, onViewChange, dataStatus, isAdmin = false 
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         <NavSection
           label="Dashboards"
           items={DASHBOARDS}
@@ -149,11 +149,11 @@ function NavSection({
   return (
     <div>
       {!collapsed && (
-        <p className="mb-1.5 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <p className="mb-2 px-2 text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
           {label}
         </p>
       )}
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         {items.map((item) => {
           const isActive = activeView === item.id;
           return (
@@ -162,7 +162,7 @@ function NavSection({
               onClick={() => onViewChange(item.id)}
               title={collapsed ? item.label : undefined}
               className={cn(
-                "flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-sm transition-colors",
+                "flex w-full items-center gap-2.5 rounded-md px-2 py-2.5 text-sm transition-colors",
                 collapsed ? "justify-center" : "",
                 isActive
                   ? "bg-primary/10 text-primary"
