@@ -498,12 +498,24 @@ export function applyColumnMapping(
   });
 }
 
+export type DurationUnit = "hours" | "minutes" | "seconds" | "milliseconds";
+
+function toDurationDivisor(unit: DurationUnit): number {
+  switch (unit) {
+    case "minutes": return 60;
+    case "seconds": return 3600;
+    case "milliseconds": return 3_600_000;
+    default: return 1;
+  }
+}
+
 /** Parse CSV rows into TimeEntry or RevenueEntry arrays */
-export function parseTimeEntriesCSV(rows: Record<string, string>[]): TimeEntry[] {
+export function parseTimeEntriesCSV(rows: Record<string, string>[], durationUnit: DurationUnit = "hours"): TimeEntry[] {
+  const divisor = toDurationDivisor(durationUnit);
   return rows.map((r) => ({
     clientName: r["clientName"] ?? r["Client Name"] ?? r["client_name"] ?? "",
     teamMember: r["teamMember"] ?? r["Team Member"] ?? r["team_member"] ?? "",
-    hoursLogged: parseFloat(r["hours"] ?? r["Time Tracked (hrs)"] ?? r["hrs"] ?? "0") || 0,
+    hoursLogged: (parseFloat(r["hours"] ?? r["Time Tracked (hrs)"] ?? r["hrs"] ?? "0") || 0) / divisor,
     date: r["date"] ?? r["Date"] ?? "",
     serviceTag: r["serviceTag"] ?? r["Service"] ?? r["service_tag"] ?? "Uncategorized",
   }));

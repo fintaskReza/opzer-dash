@@ -8,13 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Upload, CheckCircle2, AlertTriangle } from "lucide-react";
 import Papa from "papaparse";
 import type { TimeEntry, RevenueEntry } from "@/lib/types";
-import { applyColumnMapping, parseTimeEntriesCSV, parseRevenueCSV, CLIENTS } from "@/lib/data";
+import { applyColumnMapping, parseTimeEntriesCSV, parseRevenueCSV, type DurationUnit } from "@/lib/data";
 
 type Step = 1 | 2 | 3 | 4;
 type FileType = "time" | "revenue";
 
-const TIME_REQUIRED = ["clientName", "teamMember", "date", "hours", "serviceTag"];
-const TIME_OPTIONAL = ["description"];
+const TIME_REQUIRED = ["clientName", "teamMember", "date", "hours"];
+const TIME_OPTIONAL = ["serviceTag", "description"];
 const REVENUE_REQUIRED = ["clientName", "month", "amount"];
 const REVENUE_OPTIONAL = ["serviceTag"];
 
@@ -69,6 +69,7 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
   const [rawRows, setRawRows] = useState<Record<string, string>[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [durationUnit, setDurationUnit] = useState<DurationUnit>("hours");
   const [isDragging, setIsDragging] = useState(false);
   const [importResult, setImportResult] = useState<{ count: number; warnings: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -114,12 +115,8 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
     return out;
   });
 
-  const knownClients = new Set(CLIENTS.map((c) => c.karbonName.toLowerCase()));
   const warningSet = new Set<string>();
   for (const row of previewRows) {
-    if (row.clientName && !knownClients.has(row.clientName.toLowerCase())) {
-      warningSet.add(`Unrecognized client: "${row.clientName}"`);
-    }
     if (row.hours !== undefined) {
       const h = parseFloat(row.hours);
       if (!isNaN(h) && h <= 0) warningSet.add("Zero or negative hours in a row");
@@ -133,11 +130,15 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
   }
   const warnings = [...warningSet];
 
+  const uniqueClients = new Set(
+    rawRows.map((r) => (mapping.clientName && mapping.clientName !== "__none__" ? r[mapping.clientName] : "")).filter(Boolean)
+  ).size;
+
   function handleImport() {
     const mappedRows = applyColumnMapping(rawRows, mapping, fileType);
     let count = 0;
     if (fileType === "time") {
-      const entries = parseTimeEntriesCSV(mappedRows);
+      const entries = parseTimeEntriesCSV(mappedRows, durationUnit);
       count = entries.length;
       onImport(entries, []);
     } else {
@@ -155,6 +156,7 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
     setRawRows([]);
     setHeaders([]);
     setMapping({});
+    setDurationUnit("hours");
     setImportResult(null);
     onClose();
   }
@@ -165,7 +167,7 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl w-[90vw]">
         <DialogHeader>
           <DialogTitle>Import CSV</DialogTitle>
         </DialogHeader>
@@ -332,6 +334,24 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
               </table>
             </div>
 
+            {fileType === "time" && (
+              <div className="flex items-center gap-3 rounded-md border border-border bg-muted/20 px-3 py-2">
+                <span className="text-xs text-muted-foreground shrink-0">Duration format</span>
+                <Select value={durationUnit} onValueChange={(val) => setDurationUnit(val as DurationUnit)}>
+                  <SelectTrigger className="h-7 w-40 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hours">Hours (e.g. 1.5)</SelectItem>
+                    <SelectItem value="minutes">Minutes (e.g. 90)</SelectItem>
+                    <SelectItem value="seconds">Seconds (e.g. 5400)</SelectItem>
+                    <SelectItem value="milliseconds">Milliseconds (e.g. 5400000)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground">Will be converted to hours on import</span>
+              </div>
+            )}
+
             <div className="flex justify-between">
               <Button variant="secondary" size="sm" className="text-xs" onClick={() => setStep(1)}>
                 Back
@@ -348,6 +368,11 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Showing first {previewRows.length} of {rawRows.length} rows after mapping.
+              {uniqueClients > 0 && (
+                <span className="ml-2 text-muted-foreground">
+                  · <strong className="text-foreground">{uniqueClients}</strong> unique client{uniqueClients !== 1 ? "s" : ""} found
+                </span>
+              )}
             </p>
 
             <div className="overflow-x-auto rounded-md border border-border">

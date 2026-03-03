@@ -18,6 +18,7 @@ import { UtilizationChart } from "@/components/dashboard/utilization-chart";
 import { FieldMappingGuide } from "@/components/dashboard/field-mapping-guide";
 import { ServiceChart } from "@/components/dashboard/service-chart";
 import { UserManagementPanel } from "@/components/admin/user-management-panel";
+import { OrgManagementPanel } from "@/components/admin/org-management-panel";
 import {
   computeClientProfitability,
   computeTeamUtilization,
@@ -81,8 +82,8 @@ export default function DashboardPage() {
   const [enabledTeamMetrics, setEnabledTeamMetrics] = useState(DEFAULT_TEAM_METRICS);
 
   // Fetch live data from API
-  const { data: timeEntries = [] } = useSWR<TimeEntry[]>("/api/time-entries", fetcher);
-  const { data: revenueEntries = [] } = useSWR<RevenueEntry[]>("/api/revenue-entries", fetcher);
+  const { data: timeEntries = [], mutate: mutateTime } = useSWR<TimeEntry[]>("/api/time-entries", fetcher);
+  const { data: revenueEntries = [], mutate: mutateRevenue } = useSWR<RevenueEntry[]>("/api/revenue-entries", fetcher);
 
   const clientRows = useMemo<ClientProfitabilityRow[]>(
     () => computeClientProfitability(filters, timeEntries, revenueEntries),
@@ -104,6 +105,7 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(time),
       });
+      await mutateTime();
     }
     if (revenue.length > 0) {
       await fetch("/api/revenue-entries/bulk", {
@@ -111,10 +113,17 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(revenue),
       });
+      await mutateRevenue();
     }
   }
 
-  const isAdmin = session?.user?.role === "admin";
+  async function handleResetToSample() {
+    await fetch("/api/reset-sample", { method: "POST" });
+    await Promise.all([mutateTime(), mutateRevenue()]);
+  }
+
+  const isSuperAdmin = session?.user?.role === "super-admin";
+  const isAdmin = isSuperAdmin || session?.user?.role === "admin";
   const lastSync = new Date().toLocaleDateString("en-IE", { day: "2-digit", month: "short", year: "numeric" });
 
   const VIEW_META: Record<SidebarView, { title: string; subtitle: string }> = {
@@ -150,13 +159,17 @@ export default function DashboardPage() {
       title: "User Management",
       subtitle: "Manage users and organisation access",
     },
+    "org-management": {
+      title: "Organisation Management",
+      subtitle: "Create, edit, and delete organisations",
+    },
   };
 
   const meta = VIEW_META[activeView];
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar activeView={activeView} onViewChange={setActiveView} dataStatus="sample" isAdmin={isAdmin} />
+      <Sidebar activeView={activeView} onViewChange={setActiveView} dataStatus="sample" isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} />
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -234,7 +247,7 @@ export default function DashboardPage() {
             {activeView === "data-sources" && (
               <DataSourcePanel
                 onDataImport={handleDataImport}
-                onResetToSample={() => {}}
+                onResetToSample={handleResetToSample}
               />
             )}
 
@@ -252,7 +265,10 @@ export default function DashboardPage() {
             )}
 
             {/* ── User Management (admin only) ── */}
-            {activeView === "user-management" && isAdmin && <UserManagementPanel />}
+            {activeView === "user-management" && isAdmin && <UserManagementPanel isSuperAdmin={isSuperAdmin} />}
+
+            {/* ── Org Management (super-admin only) ── */}
+            {activeView === "org-management" && isSuperAdmin && <OrgManagementPanel />}
 
           </div>
         </main>

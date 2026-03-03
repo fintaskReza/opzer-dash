@@ -1,6 +1,6 @@
 import { db } from "../index";
 import { timeEntries, revenueEntries, budgetEntries } from "../schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { TimeEntry, RevenueEntry, BudgetEntry } from "@/lib/types";
 
 // ── Time Entries ─────────────────────────────────────────────────────────────
@@ -56,6 +56,19 @@ export async function deleteAllTimeEntries(orgId: number) {
   await db.delete(timeEntries).where(eq(timeEntries.orgId, orgId));
 }
 
+export async function deleteSeedTimeEntries(orgId: number) {
+  await db.delete(timeEntries).where(and(eq(timeEntries.orgId, orgId), eq(timeEntries.dataSource, "seed")));
+}
+
+export async function getTimeEntriesCountBySource(orgId: number): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ dataSource: timeEntries.dataSource, count: sql<number>`count(*)::int` })
+    .from(timeEntries)
+    .where(eq(timeEntries.orgId, orgId))
+    .groupBy(timeEntries.dataSource);
+  return Object.fromEntries(rows.map((r) => [r.dataSource ?? "unknown", r.count]));
+}
+
 // ── Revenue Entries ───────────────────────────────────────────────────────────
 
 function toRevenueEntry(r: typeof revenueEntries.$inferSelect): RevenueEntry {
@@ -101,6 +114,19 @@ export async function deleteRevenueEntry(id: number, orgId: number) {
 
 export async function deleteAllRevenueEntries(orgId: number) {
   await db.delete(revenueEntries).where(eq(revenueEntries.orgId, orgId));
+}
+
+export async function deleteSeedRevenueEntries(orgId: number) {
+  await db.delete(revenueEntries).where(and(eq(revenueEntries.orgId, orgId), eq(revenueEntries.dataSource, "seed")));
+}
+
+export async function getRevenueEntriesCountBySource(orgId: number): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ dataSource: revenueEntries.dataSource, count: sql<number>`count(*)::int` })
+    .from(revenueEntries)
+    .where(eq(revenueEntries.orgId, orgId))
+    .groupBy(revenueEntries.dataSource);
+  return Object.fromEntries(rows.map((r) => [r.dataSource ?? "unknown", r.count]));
 }
 
 // ── Budget Entries ────────────────────────────────────────────────────────────
