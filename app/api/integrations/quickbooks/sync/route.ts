@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, resolveOrgId, isAuthContext } from "@/lib/api-utils";
+import { requireAuth, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { db } from "@/lib/db";
 import { quickbooksConnections, revenueEntries } from "@/lib/db/schema";
 import { getValidQBAccessToken, QB_BASE_URL } from "@/lib/quickbooks-client";
@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
   const ctx = await requireAuth();
   if (!isAuthContext(ctx)) return ctx;
 
-  const orgId = resolveOrgId(ctx, request.nextUrl.searchParams);
+  const orgId = requireOrgId(ctx, request.nextUrl.searchParams);
+  if (typeof orgId !== "number") return orgId;
 
   // Get the active QB connection to retrieve realmId
   const [conn] = await db

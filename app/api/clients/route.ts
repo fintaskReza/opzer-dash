@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireAdmin, resolveOrgId, isAuthContext } from "@/lib/api-utils";
+import { requireAuth, requireAdmin, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { getClients, createClient } from "@/lib/db/queries/clients";
 
 export async function GET(req: NextRequest) {
   const ctx = await requireAuth();
   if (!isAuthContext(ctx)) return ctx;
 
-  const orgId = resolveOrgId(ctx, req.nextUrl.searchParams);
+  const orgId = requireOrgId(ctx, req.nextUrl.searchParams);
+  if (typeof orgId !== "number") return orgId;
   const data = await getClients(orgId);
   return NextResponse.json(data);
 }
@@ -22,7 +23,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "karbonName required" }, { status: 400 });
   }
 
-  const orgId = resolveOrgId(ctx, req.nextUrl.searchParams);
+  const orgId = requireOrgId(ctx, req.nextUrl.searchParams);
+  if (typeof orgId !== "number") return orgId;
   const client = await createClient(orgId, {
     karbonName: body.karbonName,
     quickbooksName: body.quickbooksName ?? body.karbonName,

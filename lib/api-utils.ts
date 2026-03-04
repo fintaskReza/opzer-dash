@@ -60,3 +60,18 @@ export function resolveOrgId(ctx: AuthContext, searchParams: URLSearchParams): n
 export function isAuthContext(val: AuthContext | NextResponse): val is AuthContext {
   return "userId" in val;
 }
+
+/**
+ * Like resolveOrgId but returns a 400 NextResponse if orgId is null
+ * (super-admin must supply ?orgId= for data routes).
+ */
+export function requireOrgId(
+  ctx: AuthContext,
+  searchParams: URLSearchParams
+): number | NextResponse {
+  const orgId = resolveOrgId(ctx, searchParams);
+  if (orgId === null) {
+    return NextResponse.json({ error: "orgId required for super-admin on this route" }, { status: 400 });
+  }
+  return orgId;
+}

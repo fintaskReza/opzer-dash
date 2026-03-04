@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, resolveOrgId, isAuthContext } from "@/lib/api-utils";
+import { requireAuth, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { db } from "@/lib/db";
 import { quickbooksConnections } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -8,7 +8,8 @@ export async function DELETE(request: NextRequest) {
   const ctx = await requireAuth();
   if (!isAuthContext(ctx)) return ctx;
 
-  const orgId = resolveOrgId(ctx, request.nextUrl.searchParams);
+  const orgId = requireOrgId(ctx, request.nextUrl.searchParams);
+  if (typeof orgId !== "number") return orgId;
 
   await db
     .update(quickbooksConnections)

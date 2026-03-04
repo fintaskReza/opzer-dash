@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireAdmin, resolveOrgId, isAuthContext } from "@/lib/api-utils";
+import { requireAuth, requireAdmin, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { getTeamMemberById, updateTeamMember, deleteTeamMember } from "@/lib/db/queries/team-members";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,7 +9,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (forbidden) return forbidden;
 
   const { id } = await params;
-  const orgId = resolveOrgId(ctx, req.nextUrl.searchParams);
+  const orgId = requireOrgId(ctx, req.nextUrl.searchParams);
+  if (typeof orgId !== "number") return orgId;
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
@@ -25,7 +26,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (forbidden) return forbidden;
 
   const { id } = await params;
-  const orgId = resolveOrgId(ctx, req.nextUrl.searchParams);
+  const orgId = requireOrgId(ctx, req.nextUrl.searchParams);
+  if (typeof orgId !== "number") return orgId;
   const member = await getTeamMemberById(parseInt(id, 10), orgId);
   if (!member) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, resolveOrgId, isAuthContext } from "@/lib/api-utils";
+import { requireAuth, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { insertRevenueEntriesBulk } from "@/lib/db/queries/entries";
 import type { RevenueEntry } from "@/lib/types";
 
@@ -17,7 +17,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Max ${MAX_ROWS} rows per import` }, { status: 400 });
   }
 
-  const orgId = resolveOrgId(ctx, req.nextUrl.searchParams);
+  const orgId = requireOrgId(ctx, req.nextUrl.searchParams);
+  if (typeof orgId !== "number") return orgId;
   await insertRevenueEntriesBulk(orgId, body as RevenueEntry[]);
   return NextResponse.json({ inserted: body.length }, { status: 201 });
 }

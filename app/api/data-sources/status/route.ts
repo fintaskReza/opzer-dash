@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, resolveOrgId, isAuthContext } from "@/lib/api-utils";
+import { requireAuth, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { getTimeEntriesCountBySource, getRevenueEntriesCountBySource } from "@/lib/db/queries/entries";
 
 export async function GET(req: NextRequest) {
   const ctx = await requireAuth();
   if (!isAuthContext(ctx)) return ctx;
 
-  const orgId = resolveOrgId(ctx, req.nextUrl.searchParams);
+  const orgId = requireOrgId(ctx, req.nextUrl.searchParams);
+  if (typeof orgId !== "number") return orgId;
   if (orgId === null) {
     return NextResponse.json({ error: "orgId required" }, { status: 400 });
   }

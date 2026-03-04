@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireAdmin, resolveOrgId, isAuthContext } from "@/lib/api-utils";
+import { requireAuth, requireAdmin, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { deleteSeedTimeEntries, deleteSeedRevenueEntries } from "@/lib/db/queries/entries";
 
 export async function DELETE(req: NextRequest) {
@@ -8,7 +8,8 @@ export async function DELETE(req: NextRequest) {
   const forbidden = requireAdmin(ctx);
   if (forbidden) return forbidden;
 
-  const orgId = resolveOrgId(ctx, req.nextUrl.searchParams);
+  const orgId = requireOrgId(ctx, req.nextUrl.searchParams);
+  if (typeof orgId !== "number") return orgId;
   if (orgId === null) {
     return NextResponse.json({ error: "orgId required" }, { status: 400 });
   }

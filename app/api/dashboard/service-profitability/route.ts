@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, resolveOrgId, isAuthContext } from "@/lib/api-utils";
+import { requireAuth, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { getTimeEntries, getRevenueEntries } from "@/lib/db/queries/entries";
 import { computeServiceProfitability } from "@/lib/data";
 import type { DashboardFilters } from "@/lib/types";
@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
   if (!isAuthContext(ctx)) return ctx;
 
   const sp = req.nextUrl.searchParams;
-  const orgId = resolveOrgId(ctx, sp);
+  const orgId = requireOrgId(ctx, sp);
+  if (typeof orgId !== "number") return orgId;
 
   const filters: DashboardFilters = {
     dateFrom: sp.get("from") ?? "2025-01-01",
