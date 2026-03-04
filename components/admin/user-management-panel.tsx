@@ -10,10 +10,10 @@ import { Card } from "@/components/ui/card";
 
 interface OrgUser {
   id: number;
-  orgId: number;
+  orgId: number | null;
   email: string;
   name: string;
-  role: "admin" | "member";
+  role: "super-admin" | "admin" | "member";
   createdAt: string;
 }
 
@@ -23,9 +23,19 @@ interface Org {
   slug: string;
 }
 
+interface Props {
+  isSuperAdmin?: boolean;
+}
+
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export function UserManagementPanel() {
+const ROLE_BADGE_VARIANT: Record<OrgUser["role"], "default" | "secondary" | "outline"> = {
+  "super-admin": "default",
+  admin: "secondary",
+  member: "outline",
+};
+
+export function UserManagementPanel({ isSuperAdmin = false }: Props) {
   const { data: users = [], isLoading: loadingUsers } = useSWR<OrgUser[]>("/api/users", fetcher);
   const { data: orgs = [] } = useSWR<Org[]>("/api/orgs", fetcher);
 
@@ -36,19 +46,33 @@ export function UserManagementPanel() {
   async function handleAddUser(e: React.FormEvent) {
     e.preventDefault();
     setFormError("");
-    if (!form.orgId) { setFormError("Select an organisation"); return; }
+
+    const roleValue = form.role as OrgUser["role"];
+    if (isSuperAdmin && !form.orgId && roleValue !== "super-admin") {
+      setFormError("Select an organisation");
+      return;
+    }
+
     setSubmitting(true);
+
+    const body: Record<string, unknown> = {
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      role: form.role,
+    };
+    if (form.orgId) body.orgId = parseInt(form.orgId, 10);
 
     const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, orgId: parseInt(form.orgId, 10) }),
+      body: JSON.stringify(body),
     });
 
     setSubmitting(false);
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setFormError(body.error ?? "Failed to create user");
+      const data = await res.json().catch(() => ({}));
+      setFormError(data.error ?? "Failed to create user");
       return;
     }
 
@@ -62,11 +86,15 @@ export function UserManagementPanel() {
     globalMutate("/api/users");
   }
 
+  const colSpan = isSuperAdmin ? 6 : 5;
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-foreground">User Management</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">Add and remove users across all organisations</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {isSuperAdmin ? "Add and remove users across all organisations" : "Add and remove users in your organisation"}
+        </p>
       </div>
 
       {/* Add user form */}
@@ -85,20 +113,21 @@ export function UserManagementPanel() {
             <Label className="text-xs text-muted-foreground">Password</Label>
             <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required className="h-8 text-xs" />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Organisation</Label>
-            <select
-              value={form.orgId}
-              onChange={(e) => setForm({ ...form, orgId: e.target.value })}
-              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground"
-              required
-            >
-              <option value="">Select org...</option>
-              {orgs.map((o) => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
-          </div>
+          {isSuperAdmin && (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Organisation</Label>
+              <select
+                value={form.orgId}
+                onChange={(e) => setForm({ ...form, orgId: e.target.value })}
+                className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground"
+              >
+                <option value="">No org (super-admin only)</option>
+                {orgs.map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Role</Label>
             <select
@@ -108,6 +137,7 @@ export function UserManagementPanel() {
             >
               <option value="member">Member</option>
               <option value="admin">Admin</option>
+              {isSuperAdmin && <option value="super-admin">Super Admin</option>}
             </select>
           </div>
           <div className="flex items-end">
@@ -127,7 +157,7 @@ export function UserManagementPanel() {
               <tr className="border-b border-border bg-muted/30">
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Name</th>
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Email</th>
-                <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Org</th>
+                {isSuperAdmin && <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Org</th>}
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Role</th>
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Created</th>
                 <th className="px-4 py-2.5" />
@@ -135,9 +165,9 @@ export function UserManagementPanel() {
             </thead>
             <tbody>
               {loadingUsers ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
+                <tr><td colSpan={colSpan} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No users</td></tr>
+                <tr><td colSpan={colSpan} className="px-4 py-8 text-center text-muted-foreground">No users</td></tr>
               ) : (
                 users.map((u) => {
                   const org = orgs.find((o) => o.id === u.orgId);
@@ -145,9 +175,11 @@ export function UserManagementPanel() {
                     <tr key={u.id} className="border-b border-border/50 hover:bg-muted/20">
                       <td className="px-4 py-2.5 font-medium text-foreground">{u.name}</td>
                       <td className="px-4 py-2.5 text-muted-foreground">{u.email}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{org?.name ?? u.orgId}</td>
+                      {isSuperAdmin && (
+                        <td className="px-4 py-2.5 text-muted-foreground">{org?.name ?? (u.orgId != null ? String(u.orgId) : "—")}</td>
+                      )}
                       <td className="px-4 py-2.5">
-                        <Badge variant={u.role === "admin" ? "default" : "secondary"} className="text-[10px]">
+                        <Badge variant={ROLE_BADGE_VARIANT[u.role]} className="text-[10px]">
                           {u.role}
                         </Badge>
                       </td>

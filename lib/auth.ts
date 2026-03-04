@@ -6,22 +6,22 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      orgId: number;
-      role: "admin" | "member";
+      orgId: number | null;
+      role: "super-admin" | "admin" | "member";
       name: string;
       email: string;
     };
   }
   interface User {
-    orgId: number;
-    role: "admin" | "member";
+    orgId: number | null;
+    role: "super-admin" | "admin" | "member";
   }
 }
 
 interface AppToken {
   id: string;
-  orgId: number;
-  role: "admin" | "member";
+  orgId: number | null;
+  role: "super-admin" | "admin" | "member";
   [key: string]: unknown;
 }
 
@@ -51,8 +51,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         return {
           id: String(user.id),
-          orgId: user.orgId,
-          role: user.role as "admin" | "member",
+          orgId: user.orgId ?? null,
+          role: user.role as "super-admin" | "admin" | "member",
           name: user.name,
           email: user.email,
         };
@@ -64,8 +64,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const t = token as AppToken;
       if (user) {
         t.id = user.id!;
-        t.orgId = (user as { orgId: number }).orgId;
-        t.role = (user as { role: "admin" | "member" }).role;
+        t.orgId = (user as { orgId: number | null }).orgId ?? null;
+        t.role = (user as { role: "super-admin" | "admin" | "member" }).role;
       }
       return t;
     },

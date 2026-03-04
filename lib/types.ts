@@ -121,9 +121,9 @@ export interface DashboardFilters {
 
 export interface OrgUser {
   id: number;
-  orgId: number;
+  orgId: number | null;
   email: string;
   name: string;
-  role: "admin" | "member";
+  role: "super-admin" | "admin" | "member";
   createdAt: string;
 }

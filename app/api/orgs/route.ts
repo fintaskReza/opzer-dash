@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, requireAdmin, isAuthContext } from "@/lib/api-utils";
+import { requireAuth, requireAdmin, requireSuperAdmin, isAuthContext } from "@/lib/api-utils";
 import { getOrganizations, createOrganization } from "@/lib/db/queries/organizations";
 
 export async function GET() {
@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const ctx = await requireAuth();
   if (!isAuthContext(ctx)) return ctx;
-  const forbidden = requireAdmin(ctx);
+  const forbidden = requireSuperAdmin(ctx);
   if (forbidden) return forbidden;
 
   const body = await req.json().catch(() => null);

@@ -4,11 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow login page and auth API routes
+  // Allow login page, auth API routes, and QB OAuth landing pages
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/_next") ||
+    pathname.startsWith("/quickbooks/") ||
     pathname === "/favicon.ico"
   ) {
     return NextResponse.next();

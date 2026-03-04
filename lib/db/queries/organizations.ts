@@ -21,6 +21,11 @@ export async function createOrganization(data: { name: string; slug: string }) {
   return rows[0];
 }
 
+export async function updateOrganization(id: number, data: Partial<{ name: string; slug: string }>) {
+  const rows = await db.update(organizations).set(data).where(eq(organizations.id, id)).returning();
+  return rows[0] ?? null;
+}
+
 export async function deleteOrganization(id: number) {
   await db.delete(organizations).where(eq(organizations.id, id));
 }

@@ -375,8 +375,8 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
               )}
             </p>
 
-            <div className="overflow-x-auto rounded-md border border-border">
-              <table className="w-full text-xs">
+            <div className="overflow-x-auto rounded-md border border-border min-w-0">
+              <table className="min-w-full text-xs">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     {mappedFields.map((f) => (

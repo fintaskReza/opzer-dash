@@ -3,8 +3,8 @@ import { auth } from "@/lib/auth";
 
 export interface AuthContext {
   userId: string;
-  orgId: number;
-  role: "admin" | "member";
+  orgId: number | null;
+  role: "super-admin" | "admin" | "member";
 }
 
 export async function requireAuth(): Promise<AuthContext | NextResponse> {
@@ -20,17 +20,33 @@ export async function requireAuth(): Promise<AuthContext | NextResponse> {
 }
 
 export function requireAdmin(ctx: AuthContext): NextResponse | null {
-  if (ctx.role !== "admin") {
+  if (ctx.role !== "admin" && ctx.role !== "super-admin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  return null;
+}
+
+export function requireSuperAdmin(ctx: AuthContext): NextResponse | null {
+  if (ctx.role !== "super-admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return null;
 }
 
 /**
- * Admin can override orgId via ?orgId= query param.
+ * Super-admin can override orgId via ?orgId= query param (or get null if not provided).
+ * Admin can override orgId via ?orgId= within their own scope.
  * Members always get their own orgId.
  */
-export function resolveOrgId(ctx: AuthContext, searchParams: URLSearchParams): number {
+export function resolveOrgId(ctx: AuthContext, searchParams: URLSearchParams): number | null {
+  if (ctx.role === "super-admin") {
+    const param = searchParams.get("orgId");
+    if (param) {
+      const parsed = parseInt(param, 10);
+      if (!isNaN(parsed)) return parsed;
+    }
+    return null;
+  }
   if (ctx.role === "admin") {
     const param = searchParams.get("orgId");
     if (param) {

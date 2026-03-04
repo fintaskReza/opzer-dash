@@ -13,6 +13,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
+  Building2,
 } from "lucide-react";
 
 export type SidebarView =
@@ -23,7 +24,8 @@ export type SidebarView =
   | "data-sources"
   | "field-mapping"
   | "metric-selection"
-  | "user-management";
+  | "user-management"
+  | "org-management";
 
 interface NavItem {
   id: SidebarView;
@@ -48,14 +50,19 @@ const ADMIN_NAV: NavItem[] = [
   { id: "user-management", label: "User Management", icon: <ShieldCheck className="h-4 w-4" /> },
 ];
 
+const SUPER_ADMIN_NAV: NavItem[] = [
+  { id: "org-management", label: "Org Management", icon: <Building2 className="h-4 w-4" /> },
+];
+
 interface Props {
   activeView: SidebarView;
   onViewChange: (view: SidebarView) => void;
   dataStatus: "sample" | "custom";
   isAdmin?: boolean;
+  isSuperAdmin?: boolean;
 }
 
-export function Sidebar({ activeView, onViewChange, dataStatus, isAdmin = false }: Props) {
+export function Sidebar({ activeView, onViewChange, dataStatus, isAdmin = false, isSuperAdmin = false }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -98,6 +105,15 @@ export function Sidebar({ activeView, onViewChange, dataStatus, isAdmin = false 
           <NavSection
             label="Admin"
             items={ADMIN_NAV}
+            activeView={activeView}
+            onViewChange={onViewChange}
+            collapsed={collapsed}
+          />
+        )}
+        {isSuperAdmin && (
+          <NavSection
+            label="Super Admin"
+            items={SUPER_ADMIN_NAV}
             activeView={activeView}
             onViewChange={onViewChange}
             collapsed={collapsed}

@@ -9,6 +9,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (forbidden) return forbidden;
 
   const { id } = await params;
+  const targetUser = await getUserById(parseInt(id, 10));
+  if (!targetUser) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Admins (non-super-admin) can only modify users in their own org
+  if (ctx.role === "admin" && targetUser.orgId !== ctx.orgId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
@@ -28,6 +36,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const user = await getUserById(parseInt(id, 10));
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Admins (non-super-admin) can only delete users in their own org
+  if (ctx.role === "admin" && user.orgId !== ctx.orgId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   await deleteUser(parseInt(id, 10));
   return new NextResponse(null, { status: 204 });

@@ -1,4 +1,4 @@
-import { pgTable, text, numeric, integer, boolean, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, numeric, integer, boolean, serial, timestamp, unique } from "drizzle-orm/pg-core";
 
 export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
@@ -9,11 +9,11 @@ export const organizations = pgTable("organizations", {
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  orgId: integer("org_id").references(() => organizations.id, { onDelete: "cascade" }),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
-  role: text("role", { enum: ["admin", "member"] }).notNull().default("member"),
+  role: text("role", { enum: ["super-admin", "admin", "member"] }).notNull().default("member"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -64,3 +64,19 @@ export const budgetEntries = pgTable("budget_entries", {
   clientName: text("client_name").notNull(),
   budget: numeric("budget", { precision: 12, scale: 2 }).notNull(),
 });
+
+export const quickbooksConnections = pgTable("quickbooks_connections", {
+  id: serial("id").primaryKey(),
+  orgId: integer("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  realmId: text("realm_id").notNull(),
+  companyName: text("company_name"),
+  encryptedAccessToken: text("encrypted_access_token").notNull(),
+  encryptedRefreshToken: text("encrypted_refresh_token").notNull(),
+  accessTokenExpiresAt: timestamp("access_token_expires_at").notNull(),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => ({
+  orgRealmUnique: unique().on(t.orgId, t.realmId),
+}));

@@ -22,11 +22,11 @@ export async function getUsersByOrg(orgId: number) {
 }
 
 export async function createUser(data: {
-  orgId: number;
+  orgId: number | null;
   email: string;
   password: string;
   name: string;
-  role?: "admin" | "member";
+  role?: "super-admin" | "admin" | "member";
 }) {
   const passwordHash = await bcrypt.hash(data.password, 12);
   const rows = await db
@@ -44,7 +44,7 @@ export async function createUser(data: {
 
 export async function updateUser(
   id: number,
-  data: Partial<{ name: string; role: "admin" | "member"; password: string }>
+  data: Partial<{ name: string; role: "super-admin" | "admin" | "member"; password: string }>
 ) {
   const updates: Partial<typeof users.$inferInsert> = {};
   if (data.name !== undefined) updates.name = data.name;

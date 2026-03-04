@@ -8,10 +8,15 @@ export async function GET(req: NextRequest) {
   const forbidden = requireAdmin(ctx);
   if (forbidden) return forbidden;
 
-  const orgId = req.nextUrl.searchParams.get("orgId");
-  const userList = orgId ? await getUsersByOrg(parseInt(orgId, 10)) : await getAllUsers();
+  let userList;
+  if (ctx.role === "super-admin") {
+    const orgId = req.nextUrl.searchParams.get("orgId");
+    userList = orgId ? await getUsersByOrg(parseInt(orgId, 10)) : await getAllUsers();
+  } else {
+    // admin: scoped to own org only
+    userList = ctx.orgId != null ? await getUsersByOrg(ctx.orgId) : [];
+  }
 
-  // Omit password hashes from response
   return NextResponse.json(
     userList.map(({ passwordHash: _ph, ...u }) => u)
   );
@@ -24,12 +29,25 @@ export async function POST(req: NextRequest) {
   if (forbidden) return forbidden;
 
   const body = await req.json().catch(() => null);
-  if (!body?.email || !body?.password || !body?.name || !body?.orgId) {
-    return NextResponse.json({ error: "email, password, name, and orgId required" }, { status: 400 });
+  if (!body?.email || !body?.password || !body?.name) {
+    return NextResponse.json({ error: "email, password, and name required" }, { status: 400 });
+  }
+
+  let targetOrgId: number | null;
+  if (ctx.role === "super-admin") {
+    // super-admin can set any orgId (including null for another super-admin)
+    targetOrgId = body.orgId != null ? Number(body.orgId) : null;
+  } else {
+    // admin: always scoped to own org
+    targetOrgId = ctx.orgId;
+  }
+
+  if (targetOrgId == null && body.role !== "super-admin") {
+    return NextResponse.json({ error: "orgId required for non-super-admin users" }, { status: 400 });
   }
 
   const user = await createUser({
-    orgId: body.orgId,
+    orgId: targetOrgId,
     email: body.email,
     password: body.password,
     name: body.name,
