@@ -167,7 +167,7 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-6xl w-[95vw]">
+      <DialogContent className="sm:max-w-6xl w-[95vw]">
         <DialogHeader>
           <DialogTitle>Import CSV</DialogTitle>
         </DialogHeader>
