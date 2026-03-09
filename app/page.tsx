@@ -100,19 +100,27 @@ export default function DashboardPage() {
 
   async function handleDataImport(time: TimeEntry[], revenue: RevenueEntry[]) {
     if (time.length > 0) {
-      await fetch("/api/time-entries/bulk", {
+      const res = await fetch("/api/time-entries/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(time),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Server error ${res.status}`);
+      }
       await mutateTime();
     }
     if (revenue.length > 0) {
-      await fetch("/api/revenue-entries/bulk", {
+      const res = await fetch("/api/revenue-entries/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(revenue),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `Server error ${res.status}`);
+      }
       await mutateRevenue();
     }
   }

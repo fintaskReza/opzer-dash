@@ -27,6 +27,17 @@ describe("POST /api/revenue-entries/bulk", () => {
     expect((await POST(req)).status).toBe(400);
   });
 
+  it("returns 400 if exceeds max rows", async () => {
+    mockAuth.mockResolvedValue(memberSession);
+    const rows = Array(5001).fill({ clientName: "X", amount: 1000, date: "2025-06-01" });
+    const req = new NextRequest("http://localhost/api/revenue-entries/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rows),
+    });
+    expect((await POST(req)).status).toBe(400);
+  });
+
   it("inserts and returns 201", async () => {
     mockAuth.mockResolvedValue(memberSession);
     vi.mocked(entriesQueries.insertRevenueEntriesBulk).mockResolvedValue(undefined);

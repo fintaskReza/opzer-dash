@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Upload, CheckCircle2, AlertTriangle, Loader2, XCircle } from "lucide-react";
 import Papa from "papaparse";
 import type { TimeEntry, RevenueEntry } from "@/lib/types";
 import { applyColumnMapping, parseTimeEntriesCSV, parseRevenueCSV, type DurationUnit } from "@/lib/data";
@@ -60,7 +60,7 @@ function autoDetectMapping(headers: string[], fileType: FileType): Record<string
 interface Props {
   open: boolean;
   onClose: () => void;
-  onImport: (time: TimeEntry[], revenue: RevenueEntry[]) => void;
+  onImport: (time: TimeEntry[], revenue: RevenueEntry[]) => Promise<void>;
 }
 
 export function CsvImportWizard({ open, onClose, onImport }: Props) {
@@ -72,6 +72,8 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
   const [durationUnit, setDurationUnit] = useState<DurationUnit>("hours");
   const [isDragging, setIsDragging] = useState(false);
   const [importResult, setImportResult] = useState<{ count: number; warnings: number } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const requiredFields = fileType === "time" ? TIME_REQUIRED : REVENUE_REQUIRED;
@@ -134,20 +136,29 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
     rawRows.map((r) => (mapping.clientName && mapping.clientName !== "__none__" ? r[mapping.clientName] : "")).filter(Boolean)
   ).size;
 
-  function handleImport() {
+  async function handleImport() {
     const mappedRows = applyColumnMapping(rawRows, mapping, fileType);
     let count = 0;
+    let timeEntries: ReturnType<typeof parseTimeEntriesCSV> = [];
+    let revenueEntries: ReturnType<typeof parseRevenueCSV> = [];
     if (fileType === "time") {
-      const entries = parseTimeEntriesCSV(mappedRows, durationUnit);
-      count = entries.length;
-      onImport(entries, []);
+      timeEntries = parseTimeEntriesCSV(mappedRows, durationUnit);
+      count = timeEntries.length;
     } else {
-      const entries = parseRevenueCSV(mappedRows);
-      count = entries.length;
-      onImport([], entries);
+      revenueEntries = parseRevenueCSV(mappedRows);
+      count = revenueEntries.length;
     }
-    setImportResult({ count, warnings: warnings.length });
-    setStep(4);
+    setIsSubmitting(true);
+    setImportError(null);
+    try {
+      await onImport(timeEntries, revenueEntries);
+      setImportResult({ count, warnings: warnings.length });
+      setStep(4);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Import failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function handleClose() {
@@ -158,6 +169,8 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
     setMapping({});
     setDurationUnit("hours");
     setImportResult(null);
+    setImportError(null);
+    setIsSubmitting(false);
     onClose();
   }
 
@@ -419,12 +432,23 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
               </div>
             )}
 
+            {importError && (
+              <div className="rounded-md border border-rose-400/20 bg-rose-400/10 px-4 py-3">
+                <p className="flex items-center gap-2 text-xs font-medium text-rose-400">
+                  <XCircle className="h-3.5 w-3.5" />
+                  Import failed
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{importError}</p>
+              </div>
+            )}
+
             <div className="flex justify-between">
-              <Button variant="secondary" size="sm" className="text-xs" onClick={() => setStep(2)}>
+              <Button variant="secondary" size="sm" className="text-xs" onClick={() => setStep(2)} disabled={isSubmitting}>
                 Back
               </Button>
-              <Button size="sm" className="text-xs" onClick={handleImport}>
-                Import {rawRows.length} rows
+              <Button size="sm" className="text-xs" onClick={handleImport} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                {isSubmitting ? "Importing..." : `Import ${rawRows.length} rows`}
               </Button>
             </div>
           </div>

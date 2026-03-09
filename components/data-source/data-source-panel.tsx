@@ -27,7 +27,7 @@ import {
 import { CsvImportWizard } from "./csv-import-wizard";
 
 interface Props {
-  onDataImport: (time: TimeEntry[], revenue: RevenueEntry[]) => void;
+  onDataImport: (time: TimeEntry[], revenue: RevenueEntry[]) => Promise<void>;
   onResetToSample: () => Promise<void>;
 }
 
