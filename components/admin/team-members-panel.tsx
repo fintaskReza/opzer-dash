@@ -28,9 +28,9 @@ const EMPTY_FORM = {
   role: "",
   costRate: "0",
   billingRate: "0",
-  status: "Active" as const,
+  status: "Active" as "Active" | "Inactive",
   capacityHoursPerMonth: 140,
-  location: "Onshore" as const,
+  location: "Onshore" as "Onshore" | "Offshore",
 };
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
