@@ -59,9 +59,9 @@ export function TeamMembersPanel() {
       role: m.role,
       costRate: m.costRate,
       billingRate: m.billingRate,
-      status: m.status,
+      status: m.status as "Active" | "Inactive",
       capacityHoursPerMonth: m.capacityHoursPerMonth,
-      location: m.location,
+      location: m.location as "Onshore" | "Offshore",
     });
     setError("");
     setModalOpen(true);
