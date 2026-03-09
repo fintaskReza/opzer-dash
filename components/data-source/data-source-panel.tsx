@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { TimeEntry, RevenueEntry } from "@/lib/types";
+import type { TimeEntry, RevenueEntry, TeamMemberRateRow } from "@/lib/types";
 import {
   Database,
   FileUp,
@@ -28,6 +28,7 @@ import { CsvImportWizard } from "./csv-import-wizard";
 
 interface Props {
   onDataImport: (time: TimeEntry[], revenue: RevenueEntry[]) => Promise<void>;
+  onImportRates: (rates: TeamMemberRateRow[]) => Promise<void>;
   onResetToSample: () => Promise<void>;
 }
 
@@ -59,7 +60,7 @@ const ROW_STYLES: Record<string, string> = {
   connected: "border-emerald-400/25 bg-emerald-400/5",
 };
 
-export function DataSourcePanel({ onDataImport, onResetToSample }: Props) {
+export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }: Props) {
   const [modal, setModal] = useState<ModalType>(null);
   const [qbStatus, setQbStatus] = useState<QBStatus | null>(null);
   const [qbLoading, setQbLoading] = useState(true);
@@ -421,7 +422,7 @@ export function DataSourcePanel({ onDataImport, onResetToSample }: Props) {
       </Card>
 
       {/* CSV Import Wizard */}
-      <CsvImportWizard open={modal === "csv"} onClose={closeModal} onImport={onDataImport} />
+      <CsvImportWizard open={modal === "csv"} onClose={closeModal} onImport={onDataImport} onImportRates={onImportRates} />
 
       {/* Google Sheets Modal */}
       <Dialog open={modal === "sheets"} onOpenChange={(o) => !o && closeModal()}>

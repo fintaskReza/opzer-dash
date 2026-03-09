@@ -1,5 +1,6 @@
 import type {
   TeamMember,
+  TeamMemberRateRow,
   Client,
   TimeEntry,
   RevenueEntry,
@@ -487,7 +488,7 @@ export function computeTeamUtilization(
 export function applyColumnMapping(
   rows: Record<string, string>[],
   mapping: Record<string, string>, // canonical field → CSV header
-  _type: "time" | "revenue"
+  _type: "time" | "revenue" | "rates"
 ): Record<string, string>[] {
   return rows.map((row) => {
     const out: Record<string, string> = {};
@@ -527,4 +528,27 @@ export function parseRevenueCSV(rows: Record<string, string>[]): RevenueEntry[] 
     amount: parseFloat(r["amount"] ?? r["Amount"] ?? "0") || 0,
     date: r["date"] ?? r["month"] ?? r["Date"] ?? "",
   }));
+}
+
+function parseRate(val: string | undefined): number {
+  if (!val) return 0;
+  return parseFloat(val.replace(/[^0-9.]/g, "")) || 0;
+}
+
+export function parseRatesCSV(rows: Record<string, string>[]): TeamMemberRateRow[] {
+  return rows
+    .map((r) => {
+      const location = r["location"];
+      const status = r["status"];
+      return {
+        name: r["name"] ?? "",
+        costRate: parseRate(r["costRate"]),
+        billingRate: parseRate(r["billingRate"]),
+        role: r["role"] || undefined,
+        capacityHoursPerMonth: r["capacity"] ? parseInt(r["capacity"], 10) || undefined : undefined,
+        location: (location === "Onshore" || location === "Offshore") ? location : undefined,
+        status: (status === "Active" || status === "Inactive") ? status : undefined,
+      };
+    })
+    .filter((r) => r.name.trim().length > 0);
 }

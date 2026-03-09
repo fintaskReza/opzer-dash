@@ -1,0 +1,6 @@
+name,costRate,billingRate,role,location,status,capacity
+Michael Argento,70,185,CFO,Onshore,Active,140
+Eloisa Ortega,18,80,Bookkeeper,Offshore,Active,140
+Alice Murphy,45,120,Accounting Manager,Onshore,Active,140
+Bob Kelly,35,95,Bookkeeper,Onshore,Active,140
+Carol Ryan,55,145,Senior Accountant,Onshore,Active,140

@@ -1,7 +1,7 @@
 import { db } from "../index";
 import { teamMembers } from "../schema";
 import { eq, and, inArray } from "drizzle-orm";
-import type { TeamMember } from "@/lib/types";
+import type { TeamMember, TeamMemberRateRow } from "@/lib/types";
 
 function toTeamMember(r: typeof teamMembers.$inferSelect): TeamMember {
   return {
@@ -93,6 +93,59 @@ export async function updateTeamMember(
 
 export async function deleteTeamMember(id: number, orgId: number) {
   await db.delete(teamMembers).where(and(eq(teamMembers.id, id), eq(teamMembers.orgId, orgId)));
+}
+
+// Upsert rates by name — update existing, create new. Used by bulk rates CSV import.
+export async function upsertTeamMemberRates(
+  orgId: number,
+  rows: TeamMemberRateRow[]
+): Promise<{ upserted: number; updated: number; created: number }> {
+  if (rows.length === 0) return { upserted: 0, updated: 0, created: 0 };
+
+  // Deduplicate input by name (last row wins)
+  const deduped = new Map<string, TeamMemberRateRow>();
+  for (const r of rows) deduped.set(r.name, r);
+  const unique = [...deduped.values()];
+
+  const names = unique.map((r) => r.name);
+  const existing = await db
+    .select({ id: teamMembers.id, name: teamMembers.name })
+    .from(teamMembers)
+    .where(and(eq(teamMembers.orgId, orgId), inArray(teamMembers.name, names)));
+  const existingMap = new Map(existing.map((r) => [r.name, r.id]));
+
+  let updated = 0;
+  let created = 0;
+
+  for (const row of unique) {
+    const existingId = existingMap.get(row.name);
+    if (existingId !== undefined) {
+      const updates: Partial<typeof teamMembers.$inferInsert> = {
+        costRate: String(row.costRate),
+        billingRate: String(row.billingRate),
+      };
+      if (row.role !== undefined) updates.role = row.role;
+      if (row.capacityHoursPerMonth !== undefined) updates.capacityHoursPerMonth = row.capacityHoursPerMonth;
+      if (row.location !== undefined) updates.location = row.location;
+      if (row.status !== undefined) updates.status = row.status;
+      await db.update(teamMembers).set(updates).where(and(eq(teamMembers.id, existingId), eq(teamMembers.orgId, orgId)));
+      updated++;
+    } else {
+      await db.insert(teamMembers).values({
+        orgId,
+        name: row.name,
+        role: row.role ?? "Team Member",
+        costRate: String(row.costRate),
+        billingRate: String(row.billingRate),
+        status: row.status ?? "Active",
+        capacityHoursPerMonth: row.capacityHoursPerMonth ?? 140,
+        location: row.location ?? "Onshore",
+      });
+      created++;
+    }
+  }
+
+  return { upserted: unique.length, updated, created };
 }
 
 // Auto-create any names not already in the table (from CSV import). Does not overwrite existing rows.

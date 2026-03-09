@@ -7,16 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, CheckCircle2, AlertTriangle, Loader2, XCircle } from "lucide-react";
 import Papa from "papaparse";
-import type { TimeEntry, RevenueEntry } from "@/lib/types";
-import { applyColumnMapping, parseTimeEntriesCSV, parseRevenueCSV, type DurationUnit } from "@/lib/data";
+import type { TimeEntry, RevenueEntry, TeamMemberRateRow } from "@/lib/types";
+import { applyColumnMapping, parseTimeEntriesCSV, parseRevenueCSV, parseRatesCSV, type DurationUnit } from "@/lib/data";
 
 type Step = 1 | 2 | 3 | 4;
-type FileType = "time" | "revenue";
+type FileType = "time" | "revenue" | "rates";
 
 const TIME_REQUIRED = ["clientName", "teamMember", "date", "hours"];
 const TIME_OPTIONAL = ["serviceTag", "description"];
 const REVENUE_REQUIRED = ["clientName", "month", "amount"];
 const REVENUE_OPTIONAL = ["serviceTag"];
+const RATES_REQUIRED = ["name", "costRate", "billingRate"];
+const RATES_OPTIONAL = ["role", "capacity", "location", "status"];
 
 const FIELD_LABELS: Record<string, string> = {
   clientName: "Client Name",
@@ -27,6 +29,13 @@ const FIELD_LABELS: Record<string, string> = {
   description: "Description",
   month: "Month",
   amount: "Amount",
+  name: "Name",
+  costRate: "Cost Rate (€/hr)",
+  billingRate: "Billing Rate (€/hr)",
+  role: "Role",
+  capacity: "Capacity (hrs/mo)",
+  location: "Location",
+  status: "Status",
 };
 
 const FIELD_ALIASES: Record<string, string[]> = {
@@ -37,6 +46,13 @@ const FIELD_ALIASES: Record<string, string[]> = {
   serviceTag: ["service", "servicetag", "servicetype", "serviceline", "category", "type"],
   amount: ["amount", "revenue", "invoiceamount", "value", "total"],
   month: ["month", "period", "invoicemonth", "date"],
+  name: ["name", "staffname", "fullname", "employee", "teammember"],
+  costRate: ["costrate", "cost", "costperhour", "hourlycost", "costrate"],
+  billingRate: ["billingrate", "billing", "rate", "billingperhour", "hourlyrate"],
+  role: ["role", "title", "jobtitle", "position"],
+  capacity: ["capacity", "capacityhours", "hourspermonth", "monthlyhours"],
+  location: ["location", "region"],
+  status: ["status", "active"],
 };
 
 function normalise(s: string): string {
@@ -47,7 +63,9 @@ function autoDetectMapping(headers: string[], fileType: FileType): Record<string
   const fields =
     fileType === "time"
       ? [...TIME_REQUIRED, ...TIME_OPTIONAL]
-      : [...REVENUE_REQUIRED, ...REVENUE_OPTIONAL];
+      : fileType === "revenue"
+      ? [...REVENUE_REQUIRED, ...REVENUE_OPTIONAL]
+      : [...RATES_REQUIRED, ...RATES_OPTIONAL];
   const mapping: Record<string, string> = {};
   for (const field of fields) {
     const aliases = FIELD_ALIASES[field] ?? [field];
@@ -61,9 +79,10 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onImport: (time: TimeEntry[], revenue: RevenueEntry[]) => Promise<void>;
+  onImportRates?: (rates: TeamMemberRateRow[]) => Promise<void>;
 }
 
-export function CsvImportWizard({ open, onClose, onImport }: Props) {
+export function CsvImportWizard({ open, onClose, onImport, onImportRates }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [fileType, setFileType] = useState<FileType>("time");
   const [rawRows, setRawRows] = useState<Record<string, string>[]>([]);
@@ -76,8 +95,10 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const requiredFields = fileType === "time" ? TIME_REQUIRED : REVENUE_REQUIRED;
-  const optionalFields = fileType === "time" ? TIME_OPTIONAL : REVENUE_OPTIONAL;
+  const requiredFields =
+    fileType === "time" ? TIME_REQUIRED : fileType === "revenue" ? REVENUE_REQUIRED : RATES_REQUIRED;
+  const optionalFields =
+    fileType === "time" ? TIME_OPTIONAL : fileType === "revenue" ? REVENUE_OPTIONAL : RATES_OPTIONAL;
   const allFields = [...requiredFields, ...optionalFields];
 
   function handleFile(file: File) {
@@ -132,27 +153,35 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
   }
   const warnings = [...warningSet];
 
-  const uniqueClients = new Set(
-    rawRows.map((r) => (mapping.clientName && mapping.clientName !== "__none__" ? r[mapping.clientName] : "")).filter(Boolean)
-  ).size;
+  const uniqueClients =
+    fileType !== "rates"
+      ? new Set(
+          rawRows
+            .map((r) => (mapping.clientName && mapping.clientName !== "__none__" ? r[mapping.clientName] : ""))
+            .filter(Boolean)
+        ).size
+      : 0;
 
   async function handleImport() {
     const mappedRows = applyColumnMapping(rawRows, mapping, fileType);
-    let count = 0;
-    let timeEntries: ReturnType<typeof parseTimeEntriesCSV> = [];
-    let revenueEntries: ReturnType<typeof parseRevenueCSV> = [];
-    if (fileType === "time") {
-      timeEntries = parseTimeEntriesCSV(mappedRows, durationUnit);
-      count = timeEntries.length;
-    } else {
-      revenueEntries = parseRevenueCSV(mappedRows);
-      count = revenueEntries.length;
-    }
     setIsSubmitting(true);
     setImportError(null);
     try {
-      await onImport(timeEntries, revenueEntries);
-      setImportResult({ count, warnings: warnings.length });
+      if (fileType === "rates") {
+        const rateRows = parseRatesCSV(mappedRows);
+        await onImportRates!(rateRows);
+        setImportResult({ count: rateRows.length, warnings: 0 });
+      } else {
+        let timeEntries: ReturnType<typeof parseTimeEntriesCSV> = [];
+        let revenueEntries: ReturnType<typeof parseRevenueCSV> = [];
+        if (fileType === "time") {
+          timeEntries = parseTimeEntriesCSV(mappedRows, durationUnit);
+        } else {
+          revenueEntries = parseRevenueCSV(mappedRows);
+        }
+        await onImport(timeEntries, revenueEntries);
+        setImportResult({ count: timeEntries.length || revenueEntries.length, warnings: warnings.length });
+      }
       setStep(4);
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Import failed. Please try again.");
@@ -181,6 +210,13 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
   const allRequiredMapped = requiredFields.every((f) => mapping[f] && mapping[f] !== "__none__");
 
   const stepLabels = ["Upload", "Map Columns", "Preview", "Done"];
+
+  const dropHint =
+    fileType === "time"
+      ? "Expected columns: clientName, teamMember, date, hours, serviceTag"
+      : fileType === "revenue"
+      ? "Expected columns: clientName, month, amount"
+      : "Expected columns: name, costRate, billingRate";
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
@@ -237,6 +273,19 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
                 <p className="font-medium">Revenue</p>
                 <p className="mt-0.5 text-muted-foreground">Client, amount, month</p>
               </button>
+              {onImportRates && (
+                <button
+                  onClick={() => setFileType("rates")}
+                  className={`flex-1 rounded-md border p-3 text-left text-xs transition-colors ${
+                    fileType === "rates"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  <p className="font-medium">Team Member Rates</p>
+                  <p className="mt-0.5 text-muted-foreground">Name, cost rate, billing rate</p>
+                </button>
+              )}
             </div>
 
             <div
@@ -253,11 +302,7 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
             >
               <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
               <p className="mt-2 text-sm font-medium text-foreground">Drop CSV here or click to browse</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {fileType === "time"
-                  ? "Expected columns: clientName, teamMember, date, hours, serviceTag"
-                  : "Expected columns: clientName, month, amount"}
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{dropHint}</p>
               <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFileInput} />
             </div>
 
@@ -273,6 +318,11 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
                 <a href="/sample-time-entries-messy.csv" download className="text-xs text-primary hover:underline">
                   sample-time-entries-messy.csv
                 </a>
+                {onImportRates && (
+                  <a href="/sample-rates.csv" download className="text-xs text-primary hover:underline">
+                    sample-rates.csv
+                  </a>
+                )}
               </div>
             </div>
           </div>
@@ -467,7 +517,9 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
                 {importResult.count} rows imported
                 {importResult.warnings > 0 ? ` (${importResult.warnings} warning${importResult.warnings > 1 ? "s" : ""})` : ""}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Dashboard updated successfully.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {fileType === "rates" ? "Team member rates updated." : "Dashboard updated successfully."}
+              </p>
             </div>
             <div className="flex gap-2">
               <Button size="sm" className="text-xs" onClick={resetWizard}>

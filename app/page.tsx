@@ -31,6 +31,7 @@ import type {
   UtilizationMetricKey,
   TimeEntry,
   RevenueEntry,
+  TeamMemberRateRow,
   ClientProfitabilityRow,
   TeamMemberUtilizationRow,
   ServiceProfitabilityRow,
@@ -123,6 +124,18 @@ export default function DashboardPage() {
         throw new Error(body.error ?? `Server error ${res.status}`);
       }
       await mutateRevenue();
+    }
+  }
+
+  async function handleImportRates(rates: TeamMemberRateRow[]) {
+    const res = await fetch("/api/team-members/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rates),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? `Server error ${res.status}`);
     }
   }
 
@@ -260,6 +273,7 @@ export default function DashboardPage() {
             {activeView === "data-sources" && (
               <DataSourcePanel
                 onDataImport={handleDataImport}
+                onImportRates={handleImportRates}
                 onResetToSample={handleResetToSample}
               />
             )}

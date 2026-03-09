@@ -1,3 +1,13 @@
+export interface TeamMemberRateRow {
+  name: string;
+  costRate: number;
+  billingRate: number;
+  role?: string;
+  capacityHoursPerMonth?: number;
+  location?: "Onshore" | "Offshore";
+  status?: "Active" | "Inactive";
+}
+
 export interface TeamMember {
   name: string;
   role: string;
