@@ -45,7 +45,15 @@ export async function insertTimeEntriesBulk(
     billable: e.billable ?? true,
     dataSource: e.dataSource ?? "csv",
   }));
-  await db.insert(timeEntries).values(values);
+  await db.insert(timeEntries).values(values).onConflictDoUpdate({
+    target: [timeEntries.orgId, timeEntries.clientName, timeEntries.teamMember, timeEntries.date],
+    set: {
+      hoursLogged: sql`excluded.hours_logged`,
+      serviceTag: sql`excluded.service_tag`,
+      billable: sql`excluded.billable`,
+      dataSource: sql`excluded.data_source`,
+    },
+  });
 }
 
 export async function deleteTimeEntry(id: number, orgId: number) {
@@ -105,7 +113,13 @@ export async function insertRevenueEntriesBulk(
     date: e.date,
     dataSource: e.dataSource ?? "csv",
   }));
-  await db.insert(revenueEntries).values(values);
+  await db.insert(revenueEntries).values(values).onConflictDoUpdate({
+    target: [revenueEntries.orgId, revenueEntries.clientName, revenueEntries.date],
+    set: {
+      amount: sql`excluded.amount`,
+      dataSource: sql`excluded.data_source`,
+    },
+  });
 }
 
 export async function deleteRevenueEntry(id: number, orgId: number) {

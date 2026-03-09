@@ -47,7 +47,9 @@ export const timeEntries = pgTable("time_entries", {
   serviceTag: text("service_tag").notNull().default("Uncategorized"),
   billable: boolean("billable").default(true),
   dataSource: text("data_source").notNull().default("manual"),
-});
+}, (t) => ({
+  uniqueEntry: unique().on(t.orgId, t.clientName, t.teamMember, t.date),
+}));
 
 export const revenueEntries = pgTable("revenue_entries", {
   id: serial("id").primaryKey(),
@@ -56,7 +58,9 @@ export const revenueEntries = pgTable("revenue_entries", {
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   date: text("date").notNull(), // YYYY-MM-DD stored as text
   dataSource: text("data_source").notNull().default("manual"),
-});
+}, (t) => ({
+  uniqueEntry: unique().on(t.orgId, t.clientName, t.date),
+}));
 
 export const budgetEntries = pgTable("budget_entries", {
   id: serial("id").primaryKey(),
