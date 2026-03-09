@@ -232,16 +232,16 @@ export const REVENUE_ENTRIES: RevenueEntry[] = REVENUE_ENTRIES_RAW.map((r) => {
 
 // ─── Calculation helpers ──────────────────────────────────────────────────────
 
-function costRateFor(memberName: string): number {
-  return TEAM_MEMBERS.find((m) => m.name === memberName)?.costRate ?? 0;
+function costRateFor(memberName: string, members: TeamMember[]): number {
+  return members.find((m) => m.name === memberName)?.costRate ?? 0;
 }
 
-function billingRateFor(memberName: string): number {
-  return TEAM_MEMBERS.find((m) => m.name === memberName)?.billingRate ?? 0;
+function billingRateFor(memberName: string, members: TeamMember[]): number {
+  return (members.find((m) => m.name === memberName)?.billingRate ?? 0);
 }
 
-function locationFor(memberName: string): "Onshore" | "Offshore" {
-  return TEAM_MEMBERS.find((m) => m.name === memberName)?.location ?? "Onshore";
+function locationFor(memberName: string, members: TeamMember[]): "Onshore" | "Offshore" {
+  return members.find((m) => m.name === memberName)?.location ?? "Onshore";
 }
 
 /** Filter entries by date range (inclusive, YYYY-MM-DD strings) */
@@ -252,20 +252,24 @@ function inRange(date: string, from: string, to: string): boolean {
 export function computeClientProfitability(
   filters: DashboardFilters,
   timeEntries: TimeEntry[] = TIME_ENTRIES,
-  revenueEntries: RevenueEntry[] = REVENUE_ENTRIES
+  revenueEntries: RevenueEntry[] = REVENUE_ENTRIES,
+  teamMembers?: TeamMember[],
+  clients?: Client[]
 ): ClientProfitabilityRow[] {
   const { dateFrom, dateTo, selectedClients, activeOnly } = filters;
+  const members = (teamMembers && teamMembers.length > 0) ? teamMembers : TEAM_MEMBERS;
 
-  // Filter active clients
-  const allowedClients = new Set(
-    CLIENTS.filter((c) => !activeOnly || c.status === "Active").map((c) => c.karbonName)
-  );
+  // Only filter by client list when one is configured; otherwise allow all
+  const configuredClients = (clients && clients.length > 0) ? clients : null;
+  const allowedClients = configuredClients
+    ? new Set(configuredClients.filter((c) => !activeOnly || c.status === "Active").map((c) => c.karbonName))
+    : null;
 
   // Aggregate revenue per client
   const revenueMap = new Map<string, number>();
   for (const r of revenueEntries) {
     if (!inRange(r.date, dateFrom, dateTo)) continue;
-    if (!allowedClients.has(r.clientName)) continue;
+    if (allowedClients && !allowedClients.has(r.clientName)) continue;
     revenueMap.set(r.clientName, (revenueMap.get(r.clientName) ?? 0) + r.amount);
   }
 
@@ -278,11 +282,11 @@ export function computeClientProfitability(
 
   for (const t of timeEntries) {
     if (!inRange(t.date, dateFrom, dateTo)) continue;
-    if (!allowedClients.has(t.clientName)) continue;
+    if (allowedClients && !allowedClients.has(t.clientName)) continue;
     const hours = t.hoursLogged;
-    const cost = hours * costRateFor(t.teamMember);
-    const wip = hours * billingRateFor(t.teamMember);
-    const loc = locationFor(t.teamMember);
+    const cost = hours * costRateFor(t.teamMember, members);
+    const wip = hours * billingRateFor(t.teamMember, members);
+    const loc = locationFor(t.teamMember, members);
     hoursMap.set(t.clientName, (hoursMap.get(t.clientName) ?? 0) + hours);
     costsMap.set(t.clientName, (costsMap.get(t.clientName) ?? 0) + cost);
     wipMap.set(t.clientName, (wipMap.get(t.clientName) ?? 0) + wip);
@@ -341,17 +345,21 @@ export function computeClientProfitability(
 export function computeServiceProfitability(
   filters: DashboardFilters,
   timeEntries: TimeEntry[] = TIME_ENTRIES,
-  revenueEntries: RevenueEntry[] = REVENUE_ENTRIES
+  revenueEntries: RevenueEntry[] = REVENUE_ENTRIES,
+  teamMembers?: TeamMember[],
+  clients?: Client[]
 ): ServiceProfitabilityRow[] {
   const { dateFrom, dateTo, activeOnly } = filters;
+  const members = (teamMembers && teamMembers.length > 0) ? teamMembers : TEAM_MEMBERS;
 
-  const allowedClients = new Set(
-    CLIENTS.filter((c) => !activeOnly || c.status === "Active").map((c) => c.karbonName)
-  );
+  const configuredClients = (clients && clients.length > 0) ? clients : null;
+  const allowedClients = configuredClients
+    ? new Set(configuredClients.filter((c) => !activeOnly || c.status === "Active").map((c) => c.karbonName))
+    : null;
 
   // Filter time entries in range
   const filteredTime = timeEntries.filter(
-    (t) => inRange(t.date, dateFrom, dateTo) && allowedClients.has(t.clientName)
+    (t) => inRange(t.date, dateFrom, dateTo) && (!allowedClients || allowedClients.has(t.clientName))
   );
 
   // Total hours per client (for revenue weighting)
@@ -364,7 +372,7 @@ export function computeServiceProfitability(
   const clientRevenueMap = new Map<string, number>();
   for (const r of revenueEntries) {
     if (!inRange(r.date, dateFrom, dateTo)) continue;
-    if (!allowedClients.has(r.clientName)) continue;
+    if (allowedClients && !allowedClients.has(r.clientName)) continue;
     clientRevenueMap.set(r.clientName, (clientRevenueMap.get(r.clientName) ?? 0) + r.amount);
   }
 
@@ -384,8 +392,8 @@ export function computeServiceProfitability(
     }
     const svc = serviceMap.get(tag)!;
     const hours = t.hoursLogged;
-    const cost = hours * costRateFor(t.teamMember);
-    const wip = hours * billingRateFor(t.teamMember);
+    const cost = hours * costRateFor(t.teamMember, members);
+    const wip = hours * billingRateFor(t.teamMember, members);
     const totalClientHours = totalClientHoursMap.get(t.clientName) ?? 0;
     const clientRevenue = clientRevenueMap.get(t.clientName) ?? 0;
     const revenueShare = totalClientHours > 0 ? (hours / totalClientHours) * clientRevenue : 0;
@@ -422,7 +430,8 @@ export function computeServiceProfitability(
 export function computeTeamUtilization(
   filters: DashboardFilters,
   timeEntries: TimeEntry[] = TIME_ENTRIES,
-  revenueEntries: RevenueEntry[] = REVENUE_ENTRIES
+  revenueEntries: RevenueEntry[] = REVENUE_ENTRIES,
+  teamMembers?: TeamMember[]
 ): TeamMemberUtilizationRow[] {
   const { dateFrom, dateTo } = filters;
 
@@ -438,8 +447,10 @@ export function computeTeamUtilization(
     clientHoursMap.set(t.teamMember, (clientHoursMap.get(t.teamMember) ?? 0) + t.hoursLogged);
   }
 
+  const members = (teamMembers && teamMembers.length > 0) ? teamMembers : TEAM_MEMBERS;
+
   const rows: TeamMemberUtilizationRow[] = [];
-  for (const m of TEAM_MEMBERS) {
+  for (const m of members) {
     if (m.status === "Inactive") continue;
 
     const clientHours = clientHoursMap.get(m.name) ?? 0;

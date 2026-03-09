@@ -31,6 +31,7 @@ import type {
   UtilizationMetricKey,
   TimeEntry,
   RevenueEntry,
+  TeamMember,
   TeamMemberRateRow,
   ClientProfitabilityRow,
   TeamMemberUtilizationRow,
@@ -86,18 +87,32 @@ export default function DashboardPage() {
   // Fetch live data from API
   const { data: timeEntries = [], mutate: mutateTime } = useSWR<TimeEntry[]>("/api/time-entries", fetcher);
   const { data: revenueEntries = [], mutate: mutateRevenue } = useSWR<RevenueEntry[]>("/api/revenue-entries", fetcher);
+  const { data: teamMembersRaw = [] } = useSWR<Array<{ id: number; name: string; role: string; costRate: string; billingRate: string; status: "Active" | "Inactive"; capacityHoursPerMonth: number; location: "Onshore" | "Offshore" }>>("/api/team-members", fetcher);
+
+  const teamMembers = useMemo<TeamMember[]>(
+    () => teamMembersRaw.map((m) => ({
+      name: m.name,
+      role: m.role,
+      costRate: parseFloat(m.costRate),
+      billingRate: parseFloat(m.billingRate),
+      status: m.status,
+      capacityHoursPerMonth: m.capacityHoursPerMonth,
+      location: m.location,
+    })),
+    [teamMembersRaw]
+  );
 
   const clientRows = useMemo<ClientProfitabilityRow[]>(
-    () => computeClientProfitability(filters, timeEntries, revenueEntries),
-    [filters, timeEntries, revenueEntries]
+    () => computeClientProfitability(filters, timeEntries, revenueEntries, teamMembers),
+    [filters, timeEntries, revenueEntries, teamMembers]
   );
   const teamRows = useMemo<TeamMemberUtilizationRow[]>(
-    () => computeTeamUtilization(filters, timeEntries, revenueEntries),
-    [filters, timeEntries, revenueEntries]
+    () => computeTeamUtilization(filters, timeEntries, revenueEntries, teamMembers),
+    [filters, timeEntries, revenueEntries, teamMembers]
   );
   const serviceRows = useMemo<ServiceProfitabilityRow[]>(
-    () => computeServiceProfitability(filters, timeEntries, revenueEntries),
-    [filters, timeEntries, revenueEntries]
+    () => computeServiceProfitability(filters, timeEntries, revenueEntries, teamMembers),
+    [filters, timeEntries, revenueEntries, teamMembers]
   );
 
   async function handleDataImport(time: TimeEntry[], revenue: RevenueEntry[]) {
