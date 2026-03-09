@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireAdmin, requireOrgId, isAuthContext } from "@/lib/api-utils";
-import { getTeamMembers, createTeamMember } from "@/lib/db/queries/team-members";
+import { getTeamMembersRaw, createTeamMember } from "@/lib/db/queries/team-members";
 
 export async function GET(req: NextRequest) {
   const ctx = await requireAuth();
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
   const orgId = requireOrgId(ctx, req.nextUrl.searchParams);
   if (typeof orgId !== "number") return orgId;
-  const data = await getTeamMembers(orgId);
+  const data = await getTeamMembersRaw(orgId);
   return NextResponse.json(data);
 }
 

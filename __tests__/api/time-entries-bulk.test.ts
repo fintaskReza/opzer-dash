@@ -3,9 +3,11 @@ import { NextRequest } from "next/server";
 import { POST } from "@/app/api/time-entries/bulk/route";
 import { auth } from "@/lib/auth";
 import * as entriesQueries from "@/lib/db/queries/entries";
+import * as tmQueries from "@/lib/db/queries/team-members";
 
 const mockAuth = vi.mocked(auth);
 vi.mock("@/lib/db/queries/entries");
+vi.mock("@/lib/db/queries/team-members");
 
 const memberSession = { user: { id: "2", orgId: 3, role: "member" as const, name: "Bob", email: "b@b.com" }, expires: "" };
 
@@ -41,6 +43,7 @@ describe("POST /api/time-entries/bulk", () => {
   it("inserts entries and returns 201", async () => {
     mockAuth.mockResolvedValue(memberSession);
     vi.mocked(entriesQueries.insertTimeEntriesBulk).mockResolvedValue(undefined);
+    vi.mocked(tmQueries.upsertTeamMembersByNames).mockResolvedValue(undefined);
     const rows = [{ clientName: "X", teamMember: "Y", hoursLogged: 1, date: "2025-06-01", serviceTag: "A" }];
     const req = new NextRequest("http://localhost/api/time-entries/bulk", {
       method: "POST",

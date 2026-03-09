@@ -20,11 +20,11 @@ describe("GET /api/team-members", () => {
 
   it("returns team members scoped to member orgId", async () => {
     mockAuth.mockResolvedValue(memberSession);
-    vi.mocked(tmQueries.getTeamMembers).mockResolvedValue([]);
+    vi.mocked(tmQueries.getTeamMembersRaw).mockResolvedValue([]);
     const req = new NextRequest("http://localhost/api/team-members");
     const res = await GET(req);
     expect(res.status).toBe(200);
-    expect(vi.mocked(tmQueries.getTeamMembers)).toHaveBeenCalledWith(3);
+    expect(vi.mocked(tmQueries.getTeamMembersRaw)).toHaveBeenCalledWith(3);
   });
 });
 

@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   ShieldCheck,
   Building2,
+  UserCog,
 } from "lucide-react";
 
 export type SidebarView =
@@ -24,6 +25,7 @@ export type SidebarView =
   | "data-sources"
   | "field-mapping"
   | "metric-selection"
+  | "team-members"
   | "user-management"
   | "org-management";
 
@@ -42,6 +44,7 @@ const DASHBOARDS: NavItem[] = [
 
 const CONFIGURATION: NavItem[] = [
   { id: "data-sources", label: "Data Sources", icon: <Database className="h-4 w-4" /> },
+  { id: "team-members", label: "Team Members", icon: <UserCog className="h-4 w-4" /> },
   { id: "field-mapping", label: "Field Mapping", icon: <GitMerge className="h-4 w-4" /> },
   { id: "metric-selection", label: "Metric Selection", icon: <SlidersHorizontal className="h-4 w-4" /> },
 ];

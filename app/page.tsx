@@ -19,6 +19,7 @@ import { FieldMappingGuide } from "@/components/dashboard/field-mapping-guide";
 import { ServiceChart } from "@/components/dashboard/service-chart";
 import { UserManagementPanel } from "@/components/admin/user-management-panel";
 import { OrgManagementPanel } from "@/components/admin/org-management-panel";
+import { TeamMembersPanel } from "@/components/admin/team-members-panel";
 import {
   computeClientProfitability,
   computeTeamUtilization,
@@ -155,6 +156,10 @@ export default function DashboardPage() {
       title: "Data Sources",
       subtitle: "Connect APIs, upload CSVs, or manage your data integrations",
     },
+    "team-members": {
+      title: "Team Members",
+      subtitle: "Manage billing rates, cost rates, and capacity for each team member",
+    },
     "field-mapping": {
       title: "Field Mapping",
       subtitle: "Required fields, column headers, and pre-built calculation formulas",
@@ -258,6 +263,9 @@ export default function DashboardPage() {
                 onResetToSample={handleResetToSample}
               />
             )}
+
+            {/* ── Team Members ── */}
+            {activeView === "team-members" && <TeamMembersPanel />}
 
             {/* ── Field Mapping ── */}
             {activeView === "field-mapping" && <FieldMappingGuide />}

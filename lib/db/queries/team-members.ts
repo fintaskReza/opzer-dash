@@ -1,6 +1,6 @@
 import { db } from "../index";
 import { teamMembers } from "../schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import type { TeamMember } from "@/lib/types";
 
 function toTeamMember(r: typeof teamMembers.$inferSelect): TeamMember {
@@ -18,6 +18,10 @@ function toTeamMember(r: typeof teamMembers.$inferSelect): TeamMember {
 export async function getTeamMembers(orgId: number): Promise<TeamMember[]> {
   const rows = await db.select().from(teamMembers).where(eq(teamMembers.orgId, orgId)).orderBy(teamMembers.name);
   return rows.map(toTeamMember);
+}
+
+export async function getTeamMembersRaw(orgId: number) {
+  return db.select().from(teamMembers).where(eq(teamMembers.orgId, orgId)).orderBy(teamMembers.name);
 }
 
 export async function getTeamMemberById(id: number, orgId: number) {
@@ -89,4 +93,28 @@ export async function updateTeamMember(
 
 export async function deleteTeamMember(id: number, orgId: number) {
   await db.delete(teamMembers).where(and(eq(teamMembers.id, id), eq(teamMembers.orgId, orgId)));
+}
+
+// Auto-create any names not already in the table (from CSV import). Does not overwrite existing rows.
+export async function upsertTeamMembersByNames(orgId: number, names: string[]) {
+  if (names.length === 0) return;
+  const existing = await db
+    .select({ name: teamMembers.name })
+    .from(teamMembers)
+    .where(and(eq(teamMembers.orgId, orgId), inArray(teamMembers.name, names)));
+  const existingNames = new Set(existing.map((r) => r.name));
+  const newNames = names.filter((n) => !existingNames.has(n));
+  if (newNames.length === 0) return;
+  await db.insert(teamMembers).values(
+    newNames.map((name) => ({
+      orgId,
+      name,
+      role: "Team Member",
+      costRate: "0",
+      billingRate: "0",
+      status: "Active" as const,
+      capacityHoursPerMonth: 140,
+      location: "Onshore" as const,
+    }))
+  );
 }

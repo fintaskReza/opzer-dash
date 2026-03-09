@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { insertTimeEntriesBulk } from "@/lib/db/queries/entries";
+import { upsertTeamMembersByNames } from "@/lib/db/queries/team-members";
 import type { TimeEntry } from "@/lib/types";
 
 const MAX_ROWS = 5000;
@@ -19,6 +20,9 @@ export async function POST(req: NextRequest) {
 
   const orgId = requireOrgId(ctx, req.nextUrl.searchParams);
   if (typeof orgId !== "number") return orgId;
+
+  const names = [...new Set((body as TimeEntry[]).map((e) => e.teamMember).filter(Boolean))];
+  await upsertTeamMembersByNames(orgId, names);
   await insertTimeEntriesBulk(orgId, body as TimeEntry[]);
   return NextResponse.json({ inserted: body.length }, { status: 201 });
 }
