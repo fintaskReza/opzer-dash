@@ -393,31 +393,29 @@ export function CsvImportWizard({ open, onClose, onImport, onImportRates }: Prop
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="px-3 py-2 font-mono text-muted-foreground">{sampleVal}</td>
+                        <td className="px-3 py-2 font-mono text-muted-foreground">
+                          {fileType === "time" && field === "hours" ? (
+                            <Select value={durationUnit} onValueChange={(val) => setDurationUnit(val as DurationUnit)}>
+                              <SelectTrigger className="h-7 w-44 text-xs font-sans">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="hours">Hours (e.g. 1.5)</SelectItem>
+                                <SelectItem value="minutes">Minutes (e.g. 90)</SelectItem>
+                                <SelectItem value="seconds">Seconds (e.g. 5400)</SelectItem>
+                                <SelectItem value="milliseconds">Milliseconds (e.g. 5400000)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            sampleVal
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
-
-            {fileType === "time" && (
-              <div className="flex items-center gap-3 rounded-md border border-border bg-muted/20 px-3 py-2">
-                <span className="text-xs text-muted-foreground shrink-0">Duration format</span>
-                <Select value={durationUnit} onValueChange={(val) => setDurationUnit(val as DurationUnit)}>
-                  <SelectTrigger className="h-7 w-40 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hours">Hours (e.g. 1.5)</SelectItem>
-                    <SelectItem value="minutes">Minutes (e.g. 90)</SelectItem>
-                    <SelectItem value="seconds">Seconds (e.g. 5400)</SelectItem>
-                    <SelectItem value="milliseconds">Milliseconds (e.g. 5400000)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span className="text-xs text-muted-foreground">Will be converted to hours on import</span>
-              </div>
-            )}
 
             <div className="flex justify-between">
               <Button variant="secondary" size="sm" className="text-xs" onClick={() => setStep(1)}>
