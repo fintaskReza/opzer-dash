@@ -3,7 +3,7 @@ import { requireAuth, requireOrgId, isAuthContext } from "@/lib/api-utils";
 import { insertRevenueEntriesBulk } from "@/lib/db/queries/entries";
 import type { RevenueEntry } from "@/lib/types";
 
-const MAX_ROWS = 5000;
+const MAX_ROWS = 10000;
 
 export async function POST(req: NextRequest) {
   const ctx = await requireAuth();

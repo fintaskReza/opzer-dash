@@ -3,7 +3,7 @@ import { requireAuth, requireAdmin, requireOrgId, isAuthContext } from "@/lib/ap
 import { upsertTeamMemberRates } from "@/lib/db/queries/team-members";
 import type { TeamMemberRateRow } from "@/lib/types";
 
-const MAX_ROWS = 500;
+const MAX_ROWS = 2000;
 
 export async function POST(req: NextRequest) {
   const ctx = await requireAuth();

@@ -4,7 +4,7 @@ import { insertTimeEntriesBulk } from "@/lib/db/queries/entries";
 import { upsertTeamMembersByNames } from "@/lib/db/queries/team-members";
 import type { TimeEntry } from "@/lib/types";
 
-const MAX_ROWS = 5000;
+const MAX_ROWS = 10000;
 
 export async function POST(req: NextRequest) {
   const ctx = await requireAuth();
