@@ -546,8 +546,8 @@ export function parseRatesCSV(rows: Record<string, string>[]): TeamMemberRateRow
         billingRate: parseRate(r["billingRate"]),
         role: r["role"] || undefined,
         capacityHoursPerMonth: r["capacity"] ? parseInt(r["capacity"], 10) || undefined : undefined,
-        location: (location === "Onshore" || location === "Offshore") ? location : undefined,
-        status: (status === "Active" || status === "Inactive") ? status : undefined,
+        location: (location === "Onshore" || location === "Offshore") ? location as "Onshore" | "Offshore" : undefined,
+        status: (status === "Active" || status === "Inactive") ? status as "Active" | "Inactive" : undefined,
       };
     })
     .filter((r) => r.name.trim().length > 0);

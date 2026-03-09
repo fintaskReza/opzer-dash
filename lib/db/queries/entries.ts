@@ -35,16 +35,20 @@ export async function insertTimeEntriesBulk(
   entries: Array<Omit<TimeEntry, "billable"> & { billable?: boolean; dataSource?: string }>
 ) {
   if (entries.length === 0) return;
-  const values = entries.map((e) => ({
-    orgId,
-    clientName: e.clientName,
-    teamMember: e.teamMember,
-    hoursLogged: String(e.hoursLogged),
-    date: e.date,
-    serviceTag: e.serviceTag || "Uncategorized",
-    billable: e.billable ?? true,
-    dataSource: e.dataSource ?? "csv",
-  }));
+
+  // Merge rows with same (clientName, teamMember, date) by summing hours
+  const merged = new Map<string, { orgId: number; clientName: string; teamMember: string; hoursLogged: number; date: string; serviceTag: string; billable: boolean; dataSource: string }>();
+  for (const e of entries) {
+    const key = `${e.clientName}::${e.teamMember}::${e.date}`;
+    const existing = merged.get(key);
+    if (existing) {
+      existing.hoursLogged += e.hoursLogged;
+    } else {
+      merged.set(key, { orgId, clientName: e.clientName, teamMember: e.teamMember, hoursLogged: e.hoursLogged, date: e.date, serviceTag: e.serviceTag || "Uncategorized", billable: e.billable ?? true, dataSource: e.dataSource ?? "csv" });
+    }
+  }
+  const values = [...merged.values()].map((v) => ({ ...v, hoursLogged: String(v.hoursLogged) }));
+
   await db.insert(timeEntries).values(values).onConflictDoUpdate({
     target: [timeEntries.orgId, timeEntries.clientName, timeEntries.teamMember, timeEntries.date],
     set: {
@@ -106,13 +110,21 @@ export async function insertRevenueEntriesBulk(
   entries: Array<RevenueEntry & { dataSource?: string }>
 ) {
   if (entries.length === 0) return;
-  const values = entries.map((e) => ({
-    orgId,
-    clientName: e.clientName,
-    amount: String(e.amount),
-    date: e.date,
-    dataSource: e.dataSource ?? "csv",
-  }));
+
+  // Merge rows with same (clientName, date) by summing amounts — prevents
+  // "ON CONFLICT DO UPDATE command cannot affect row a second time" from Postgres
+  const merged = new Map<string, { orgId: number; clientName: string; amount: number; date: string; dataSource: string }>();
+  for (const e of entries) {
+    const key = `${e.clientName}::${e.date}`;
+    const existing = merged.get(key);
+    if (existing) {
+      existing.amount += e.amount;
+    } else {
+      merged.set(key, { orgId, clientName: e.clientName, amount: e.amount, date: e.date, dataSource: e.dataSource ?? "csv" });
+    }
+  }
+  const values = [...merged.values()].map((v) => ({ ...v, amount: String(v.amount) }));
+
   await db.insert(revenueEntries).values(values).onConflictDoUpdate({
     target: [revenueEntries.orgId, revenueEntries.clientName, revenueEntries.date],
     set: {
