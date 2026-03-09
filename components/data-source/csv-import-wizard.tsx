@@ -161,7 +161,7 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
     }
   }
 
-  function handleClose() {
+  function resetWizard() {
     setStep(1);
     setFileType("time");
     setRawRows([]);
@@ -171,6 +171,10 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
     setImportResult(null);
     setImportError(null);
     setIsSubmitting(false);
+  }
+
+  function handleClose() {
+    resetWizard();
     onClose();
   }
 
@@ -465,9 +469,14 @@ export function CsvImportWizard({ open, onClose, onImport }: Props) {
               </p>
               <p className="mt-1 text-xs text-muted-foreground">Dashboard updated successfully.</p>
             </div>
-            <Button variant="secondary" size="sm" className="text-xs" onClick={handleClose}>
-              Done
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" className="text-xs" onClick={resetWizard}>
+                Import another file
+              </Button>
+              <Button variant="secondary" size="sm" className="text-xs" onClick={handleClose}>
+                Done
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>
