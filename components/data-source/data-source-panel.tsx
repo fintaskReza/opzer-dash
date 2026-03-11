@@ -84,7 +84,7 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample, 
   async function fetchQbStatus() {
     setQbLoading(true);
     try {
-      const res = await fetch("/api/integrations/quickbooks/status");
+      const res = await fetch(`/api/integrations/quickbooks/status${qs}`);
       if (res.ok) {
         const data: QBStatus = await res.json();
         setQbStatus(data);
@@ -114,7 +114,7 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample, 
     setSyncStatus("syncing");
     setSyncCount(null);
     try {
-      const res = await fetch("/api/integrations/quickbooks/sync", { method: "POST" });
+      const res = await fetch(`/api/integrations/quickbooks/sync${qs}`, { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         setSyncCount(data.synced);
@@ -130,7 +130,7 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample, 
   async function handleDisconnect() {
     setDisconnecting(true);
     try {
-      await fetch("/api/integrations/quickbooks/disconnect", { method: "DELETE" });
+      await fetch(`/api/integrations/quickbooks/disconnect${qs}`, { method: "DELETE" });
       setQbStatus({ connected: false, companyName: null, connectedAt: null, lastUpdated: null });
       setSyncStatus("idle");
       setSyncCount(null);

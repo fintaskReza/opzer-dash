@@ -328,7 +328,7 @@ export default function DashboardPage() {
             )}
 
             {/* ── Team Members ── */}
-            {activeView === "team-members" && <TeamMembersPanel />}
+            {activeView === "team-members" && <TeamMembersPanel orgId={isSuperAdmin ? selectedOrgId : undefined} />}
 
             {/* ── Field Mapping ── */}
             {activeView === "field-mapping" && <FieldMappingGuide />}

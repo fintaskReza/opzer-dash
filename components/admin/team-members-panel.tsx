@@ -35,8 +35,11 @@ const EMPTY_FORM = {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export function TeamMembersPanel() {
-  const { data: members = [], isLoading, mutate } = useSWR<TeamMemberRow[]>("/api/team-members", fetcher);
+export function TeamMembersPanel({ orgId }: { orgId?: number | null }) {
+  const qs = orgId != null ? `?orgId=${orgId}` : "";
+  const swrKey = orgId === null ? null : `/api/team-members${qs}`;
+  const { data: membersRaw, isLoading, mutate } = useSWR<TeamMemberRow[]>(swrKey, fetcher);
+  const members = Array.isArray(membersRaw) ? membersRaw : [];
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<TeamMemberRow | null>(null);
@@ -97,12 +100,12 @@ export function TeamMembersPanel() {
       };
 
       const res = editing
-        ? await fetch(`/api/team-members/${editing.id}`, {
+        ? await fetch(`/api/team-members/${editing.id}${qs}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           })
-        : await fetch("/api/team-members", {
+        : await fetch(`/api/team-members${qs}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -124,7 +127,7 @@ export function TeamMembersPanel() {
     if (!confirm(`Delete ${m.name}? This cannot be undone.`)) return;
     setDeletingId(m.id);
     try {
-      await fetch(`/api/team-members/${m.id}`, { method: "DELETE" });
+      await fetch(`/api/team-members/${m.id}${qs}`, { method: "DELETE" });
       await mutate();
     } finally {
       setDeletingId(null);
