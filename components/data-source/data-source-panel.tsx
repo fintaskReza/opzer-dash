@@ -69,6 +69,8 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }
   const [disconnecting, setDisconnecting] = useState(false);
   const [dataStatus, setDataStatus] = useState<DataSourceStatus | null>(null);
   const [seedLoading, setSeedLoading] = useState(false);
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     fetchQbStatus();
@@ -150,6 +152,20 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }
       await fetchDataStatus();
     } finally {
       setSeedLoading(false);
+    }
+  }
+
+  async function handleClearAll() {
+    setClearing(true);
+    try {
+      await Promise.all([
+        fetch("/api/time-entries", { method: "DELETE" }),
+        fetch("/api/revenue-entries", { method: "DELETE" }),
+      ]);
+      await fetchDataStatus();
+    } finally {
+      setClearing(false);
+      setClearConfirm(false);
     }
   }
 
@@ -382,6 +398,34 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }
             </div>
           </div>
 
+          {/* Clear all data */}
+          {(() => {
+            const total = dataStatus?.total;
+            const hasData = (total?.time ?? 0) > 0 || (total?.revenue ?? 0) > 0;
+            return (
+              <div className="border-t border-border px-6 py-4 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-medium text-foreground">Clear All Data</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {hasData
+                      ? `Permanently delete ${total?.time ?? 0} time entr${(total?.time ?? 0) === 1 ? "y" : "ies"} and ${total?.revenue ?? 0} revenue record${(total?.revenue ?? 0) === 1 ? "" : "s"}`
+                      : "No data to clear"}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 shrink-0 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  disabled={!hasData || clearing}
+                  onClick={() => setClearConfirm(true)}
+                >
+                  <Trash2 className="mr-1.5 h-3 w-3" />
+                  Clear all
+                </Button>
+              </div>
+            );
+          })()}
+
           {/* CSV schema reference */}
           <div className="border-t border-border bg-muted/20 px-6 py-4">
             <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -423,6 +467,34 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }
 
       {/* CSV Import Wizard */}
       <CsvImportWizard open={modal === "csv"} onClose={closeModal} onImport={onDataImport} onImportRates={onImportRates} />
+
+      {/* Clear All Confirmation */}
+      <Dialog open={clearConfirm} onOpenChange={(o) => !o && setClearConfirm(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Clear all data?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <p className="text-sm text-muted-foreground">
+              This will permanently delete all time entries and revenue records for your organisation. This cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="secondary" onClick={() => setClearConfirm(false)} disabled={clearing}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleClearAll}
+                disabled={clearing}
+              >
+                {clearing ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <Trash2 className="mr-1.5 h-3 w-3" />}
+                {clearing ? "Clearing..." : "Delete everything"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Google Sheets Modal */}
       <Dialog open={modal === "sheets"} onOpenChange={(o) => !o && closeModal()}>
