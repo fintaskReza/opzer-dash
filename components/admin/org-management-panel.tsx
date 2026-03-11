@@ -19,7 +19,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 export function OrgManagementPanel() {
   const { data: orgs = [], isLoading } = useSWR<Org[]>("/api/orgs", fetcher);
 
-  const [form, setForm] = useState({ name: "", slug: "" });
+  const [form, setForm] = useState({ name: "" });
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,13 +31,14 @@ export function OrgManagementPanel() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setFormError("");
-    if (!form.name || !form.slug) { setFormError("Name and slug are required"); return; }
+    if (!form.name) { setFormError("Name is required"); return; }
+    const slug = form.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     setSubmitting(true);
 
     const res = await fetch("/api/orgs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ name: form.name, slug }),
     });
 
     setSubmitting(false);
@@ -47,7 +48,7 @@ export function OrgManagementPanel() {
       return;
     }
 
-    setForm({ name: "", slug: "" });
+    setForm({ name: "" });
     globalMutate("/api/orgs");
   }
 
@@ -112,16 +113,7 @@ export function OrgManagementPanel() {
               className="h-8 text-xs"
             />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Slug</Label>
-            <Input
-              value={form.slug}
-              onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
-              placeholder="acme-corp"
-              required
-              className="h-8 text-xs font-mono"
-            />
-          </div>
+
           <div className="flex items-end">
             <Button type="submit" size="sm" disabled={submitting} className="h-8 text-xs">
               {submitting ? "Creating..." : "Create Organisation"}
