@@ -30,6 +30,7 @@ interface Props {
   onDataImport: (time: TimeEntry[], revenue: RevenueEntry[]) => Promise<void>;
   onImportRates: (rates: TeamMemberRateRow[]) => Promise<void>;
   onResetToSample: () => Promise<void>;
+  orgId?: number | null;
 }
 
 type ModalType = "qbo" | "csv" | "sheets" | null;
@@ -60,7 +61,7 @@ const ROW_STYLES: Record<string, string> = {
   connected: "border-emerald-400/25 bg-emerald-400/5",
 };
 
-export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }: Props) {
+export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample, orgId }: Props) {
   const [modal, setModal] = useState<ModalType>(null);
   const [qbStatus, setQbStatus] = useState<QBStatus | null>(null);
   const [qbLoading, setQbLoading] = useState(true);
@@ -72,10 +73,13 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }
   const [clearConfirm, setClearConfirm] = useState(false);
   const [clearing, setClearing] = useState(false);
 
+  const qs = orgId != null ? `?orgId=${orgId}` : "";
+
   useEffect(() => {
     fetchQbStatus();
     fetchDataStatus();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
 
   async function fetchQbStatus() {
     setQbLoading(true);
@@ -94,7 +98,7 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }
 
   async function fetchDataStatus() {
     try {
-      const res = await fetch("/api/data-sources/status");
+      const res = await fetch(`/api/data-sources/status${qs}`);
       if (res.ok) setDataStatus(await res.json());
     } catch {
       // non-fatal
@@ -148,7 +152,7 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }
   async function handleRemoveSeed() {
     setSeedLoading(true);
     try {
-      await fetch("/api/seed-data", { method: "DELETE" });
+      await fetch(`/api/seed-data${qs}`, { method: "DELETE" });
       await fetchDataStatus();
     } finally {
       setSeedLoading(false);
@@ -159,8 +163,8 @@ export function DataSourcePanel({ onDataImport, onImportRates, onResetToSample }
     setClearing(true);
     try {
       await Promise.all([
-        fetch("/api/time-entries", { method: "DELETE" }),
-        fetch("/api/revenue-entries", { method: "DELETE" }),
+        fetch(`/api/time-entries${qs}`, { method: "DELETE" }),
+        fetch(`/api/revenue-entries${qs}`, { method: "DELETE" }),
       ]);
       await fetchDataStatus();
     } finally {

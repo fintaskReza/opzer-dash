@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useSession, signOut } from "next-auth/react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sidebar, type SidebarView } from "@/components/layout/sidebar";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { DashboardFilters } from "@/components/dashboard/filters";
@@ -77,17 +78,33 @@ function buildDashboardUrl(base: string, filters: IFilters) {
   return `${base}?${params.toString()}`;
 }
 
+interface Org { id: number; name: string; slug: string; }
+
+
 export default function DashboardPage() {
   const { data: session } = useSession();
   const [activeView, setActiveView] = useState<SidebarView>("client-profitability");
   const [filters, setFilters] = useState<IFilters>(DEFAULT_FILTERS);
   const [enabledClientMetrics, setEnabledClientMetrics] = useState(DEFAULT_CLIENT_METRICS);
   const [enabledTeamMetrics, setEnabledTeamMetrics] = useState(DEFAULT_TEAM_METRICS);
+  const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
+
+  const isSuperAdmin = session?.user?.role === "super-admin";
+  const isAdmin = isSuperAdmin || session?.user?.role === "admin";
+
+  // Super-admins pick an org; others use their own
+  const { data: orgs = [] } = useSWR<Org[]>(isSuperAdmin ? "/api/orgs" : null, fetcher);
+
+  // Append ?orgId= for super-admin; block fetch until org is selected
+  const orgSuffix = isSuperAdmin ? (selectedOrgId ? `?orgId=${selectedOrgId}` : null) : "";
+  const timeKey = orgSuffix !== null ? `/api/time-entries${orgSuffix}` : null;
+  const revenueKey = orgSuffix !== null ? `/api/revenue-entries${orgSuffix}` : null;
+  const teamKey = orgSuffix !== null ? `/api/team-members${orgSuffix}` : null;
 
   // Fetch live data from API
-  const { data: timeEntries = [], mutate: mutateTime } = useSWR<TimeEntry[]>("/api/time-entries", fetcher);
-  const { data: revenueEntries = [], mutate: mutateRevenue } = useSWR<RevenueEntry[]>("/api/revenue-entries", fetcher);
-  const { data: teamMembersRaw = [] } = useSWR<Array<{ id: number; name: string; role: string; costRate: string; billingRate: string; status: "Active" | "Inactive"; capacityHoursPerMonth: number; location: "Onshore" | "Offshore" }>>("/api/team-members", fetcher);
+  const { data: timeEntries = [], mutate: mutateTime } = useSWR<TimeEntry[]>(timeKey, fetcher);
+  const { data: revenueEntries = [], mutate: mutateRevenue } = useSWR<RevenueEntry[]>(revenueKey, fetcher);
+  const { data: teamMembersRaw = [] } = useSWR<Array<{ id: number; name: string; role: string; costRate: string; billingRate: string; status: "Active" | "Inactive"; capacityHoursPerMonth: number; location: "Onshore" | "Offshore" }>>(teamKey, fetcher);
 
   const teamMembers = useMemo<TeamMember[]>(
     () => teamMembersRaw.map((m) => ({
@@ -115,9 +132,11 @@ export default function DashboardPage() {
     [filters, timeEntries, revenueEntries, teamMembers]
   );
 
+  const qs = isSuperAdmin && selectedOrgId ? `?orgId=${selectedOrgId}` : "";
+
   async function handleDataImport(time: TimeEntry[], revenue: RevenueEntry[]) {
     if (time.length > 0) {
-      const res = await fetch("/api/time-entries/bulk", {
+      const res = await fetch(`/api/time-entries/bulk${qs}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(time),
@@ -129,7 +148,7 @@ export default function DashboardPage() {
       await mutateTime();
     }
     if (revenue.length > 0) {
-      const res = await fetch("/api/revenue-entries/bulk", {
+      const res = await fetch(`/api/revenue-entries/bulk${qs}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(revenue),
@@ -143,7 +162,7 @@ export default function DashboardPage() {
   }
 
   async function handleImportRates(rates: TeamMemberRateRow[]) {
-    const res = await fetch("/api/team-members/bulk", {
+    const res = await fetch(`/api/team-members/bulk${qs}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(rates),
@@ -155,12 +174,9 @@ export default function DashboardPage() {
   }
 
   async function handleResetToSample() {
-    await fetch("/api/reset-sample", { method: "POST" });
+    await fetch(`/api/reset-sample${qs}`, { method: "POST" });
     await Promise.all([mutateTime(), mutateRevenue()]);
   }
-
-  const isSuperAdmin = session?.user?.role === "super-admin";
-  const isAdmin = isSuperAdmin || session?.user?.role === "admin";
   const lastSync = new Date().toLocaleDateString("en-IE", { day: "2-digit", month: "short", year: "numeric" });
 
   const VIEW_META: Record<SidebarView, { title: string; subtitle: string }> = {
@@ -221,6 +237,23 @@ export default function DashboardPage() {
             <p className="mt-0.5 text-sm text-muted-foreground">{meta.subtitle}</p>
           </div>
           <div className="flex items-center gap-4">
+            {isSuperAdmin && (
+              <Select
+                value={selectedOrgId ? String(selectedOrgId) : ""}
+                onValueChange={(v) => setSelectedOrgId(Number(v))}
+              >
+                <SelectTrigger className="h-8 w-44 text-xs">
+                  <SelectValue placeholder="Select organisation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgs.map((o) => (
+                    <SelectItem key={o.id} value={String(o.id)} className="text-xs">
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               {`Live data — ${lastSync}`}
@@ -290,6 +323,7 @@ export default function DashboardPage() {
                 onDataImport={handleDataImport}
                 onImportRates={handleImportRates}
                 onResetToSample={handleResetToSample}
+                orgId={isSuperAdmin ? selectedOrgId : undefined}
               />
             )}
 
