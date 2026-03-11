@@ -281,7 +281,7 @@ export default function DashboardPage() {
             {/* ── Client Profitability ── */}
             {activeView === "client-profitability" && (
               <>
-                <DashboardFilters filters={filters} onChange={setFilters} />
+                <DashboardFilters filters={filters} onChange={setFilters} orgId={isSuperAdmin ? selectedOrgId : undefined} />
                 <KpiCards clients={clientRows} team={teamRows} />
                 <OverviewCharts data={clientRows} />
                 <ClientProfitabilityTable data={clientRows} enabledMetrics={enabledClientMetrics} />
@@ -291,7 +291,7 @@ export default function DashboardPage() {
             {/* ── Team Utilization ── */}
             {activeView === "team-utilization" && (
               <>
-                <DashboardFilters filters={filters} onChange={setFilters} />
+                <DashboardFilters filters={filters} onChange={setFilters} orgId={isSuperAdmin ? selectedOrgId : undefined} />
                 <UtilizationChart data={teamRows} />
                 <TeamUtilizationTable data={teamRows} enabledMetrics={enabledTeamMetrics} />
               </>
@@ -300,7 +300,7 @@ export default function DashboardPage() {
             {/* ── Service Profitability ── */}
             {activeView === "service-profitability" && (
               <>
-                <DashboardFilters filters={filters} onChange={setFilters} />
+                <DashboardFilters filters={filters} onChange={setFilters} orgId={isSuperAdmin ? selectedOrgId : undefined} />
                 <ServiceChart data={serviceRows} />
                 <ServiceProfitabilityTable data={serviceRows} />
               </>
@@ -309,7 +309,7 @@ export default function DashboardPage() {
             {/* ── Charts ── */}
             {activeView === "charts" && (
               <>
-                <DashboardFilters filters={filters} onChange={setFilters} />
+                <DashboardFilters filters={filters} onChange={setFilters} orgId={isSuperAdmin ? selectedOrgId : undefined} />
                 <OverviewCharts data={clientRows} />
                 <ServiceChart data={serviceRows} />
                 <ProfitabilityChart data={clientRows} />

@@ -13,6 +13,7 @@ import { useState } from "react";
 interface Props {
   filters: DashboardFilters;
   onChange: (f: DashboardFilters) => void;
+  orgId?: number | null;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -156,9 +157,12 @@ function detectPreset(dateFrom: string, dateTo: string): PeriodPreset {
   return "Custom";
 }
 
-export function DashboardFilters({ filters, onChange }: Props) {
+export function DashboardFilters({ filters, onChange, orgId }: Props) {
   const [clientSearch, setClientSearch] = useState("");
-  const { data: clients = [] } = useSWR<Client[]>("/api/clients", fetcher);
+  // orgId===null means super-admin with no org selected yet — skip fetch
+  const clientsKey = orgId === null ? null : orgId != null ? `/api/clients?orgId=${orgId}` : "/api/clients";
+  const { data: clientsRaw } = useSWR<Client[]>(clientsKey, fetcher);
+  const clients = Array.isArray(clientsRaw) ? clientsRaw : [];
 
   const activeClients = clients
     .filter((c) => c.status === "Active")
